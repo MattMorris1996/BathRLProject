@@ -4,3 +4,4 @@
 
 print("hello world")
 
+python ../gym/envs/box2d/car_racing.py

@@ -23,4 +23,4 @@ from gym.utils import seeding, EzPickle
 import pyglet
 
 pyglet.options["debug_gl"] = False
-from pyglet import gl Box2D
+from pyglet import gl
