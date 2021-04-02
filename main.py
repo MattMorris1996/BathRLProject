@@ -2,7 +2,7 @@ import gym
 
 
 def main():
-    env = gym.make('CarRacing-v0')
+    env = gym.make('MountainCarContinuous-v0')
     env.reset()
     for _ in range(1000):
         env.render()
