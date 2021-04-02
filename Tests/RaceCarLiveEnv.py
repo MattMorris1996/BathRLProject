@@ -1,11 +1,3 @@
-#Finger crossed
-
-#hello everyone
-
-#Hello Tanmay
-
-#Hello World
-
 import sys
 import math
 import numpy as np

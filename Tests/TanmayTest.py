@@ -1,3 +1,5 @@
+import time
+
 import gym
 # import time
 import numpy as np
@@ -34,8 +36,8 @@ def main():
         plt.figure(2)
         plt.imshow(states, cmap=plt.get_cmap('gray'), vmin=0, vmax=255)
         plt.show()
-        # time.sleep(1/60)
-        # plt.close('all')
+        time.sleep(1/60)
+        plt.close('all')
     env.close()
     pass
 
