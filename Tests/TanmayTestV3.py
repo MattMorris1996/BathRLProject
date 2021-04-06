@@ -1,5 +1,3 @@
-# DQN Implementation
-
 import gym
 
 import random
@@ -23,7 +21,7 @@ NUM_PARALLEL_EXEC_UNITS = 12
 config = tf.ConfigProto(intra_op_parallelism_threads=NUM_PARALLEL_EXEC_UNITS,
                         inter_op_parallelism_threads=4,
                         allow_soft_placement=True,
-                        device_count={'CPU': NUM_PARALLEL_EXEC_UNITS})
+                        device_count = {'CPU': NUM_PARALLEL_EXEC_UNITS})
 
 session = tf.Session(config=config)
 
@@ -55,10 +53,10 @@ class Agent:
 
         self.reset()
 
-    def createModel(self):
+    def createModel(self, input = self.env.observation_space.shape[0]):
         model = Sequential()
-        state_shape = self.env.observation_space.shape
-        model.add(Dense(24, input_dim=state_shape[0], activation="relu"))
+        # state_shape = self.env.observation_space.shape
+        model.add(Dense(24, input_dim=input, activation="relu"))
         model.add(Dense(48, activation="relu"))
         model.add(Dense(24, activation="relu"))
         model.add(Dense(1))  # self.env.action_space.n))
@@ -114,7 +112,7 @@ class Agent:
         # self.epsilon *= self.decay
         self.epsilon = max(self.epsilon/1000, self.epsilon)
         if np.random.random() < self.epsilon:
-            return random.uniform(-2, 2)
+            return random.uniform(-2,2)
         # else:
         # print((self.model.predict(state)))
             # action = action_us*2 - 1
