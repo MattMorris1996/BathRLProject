@@ -1,5 +1,7 @@
 import gym
 import numpy as np
+import tensorflow as tf
+import pickle
 
 
 class TileCoding:
@@ -32,22 +34,24 @@ class TileGrid:
         self.v1_min, self.v1_max = variable_range1
         self.v2_min, self.v2_max = variable_range2
 
-        self.max_rect_width = (self.v1_max - self.v1_min) / (self.n_columns - 1)
-        self.max_rect_height = (self.v2_max - self.v2_min) / (self.n_rows - 1)
+        standard_width = (self.v1_min - self.v1_max) / self.n_columns
 
-        self.scale_increase_v1 = self.max_rect_width / 2
-        self.scale_increase_v2 = self.max_rect_height / 2
+        self.grid_width = (standard_width * (self.n_columns + 1))/self.n_columns
 
-        self.v1_grid_min, self.v1_grid_max = (self.v1_min - self.scale_increase_v1 / 2,
-                                              self.v1_max + self.scale_increase_v1 / 2)
+        standard_height = (self.v2_min - self.v2_max) / self.n_rows
+        self.grid_height = (standard_height * (self.n_rows + 1))/self.n_rows
 
-        self.v2_grid_min, self.v2_grid_max = (self.v2_min - self.scale_increase_v2 / 2,
-                                              self.v2_max + self.scale_increase_v2 / 2)
+        self.scale_increase_v1 = standard_width / 2
+        self.scale_increase_v2 = standard_height / 2
 
-        self.grid_width, self.grid_height = (self.v1_grid_max - self.v1_grid_min / self.n_columns,
-                                             self.v2_grid_max - self.v2_grid_min / self.n_rows)
+        self.v1_grid_min, self.v1_grid_max = (self.v1_min - self.scale_increase_v1,
+                                              self.v1_max + self.scale_increase_v1)
 
-        self.grid_offset_x, self.grid_offset_y = (0, 0)
+        self.v2_grid_min, self.v2_grid_max = (self.v2_min - self.scale_increase_v2,
+                                              self.v2_max + self.scale_increase_v2)
+
+        self.grid_offset_x, self.grid_offset_y = (np.random.uniform(-self.scale_increase_v1, self.scale_increase_v1),
+                                                  np.random.uniform(-self.scale_increase_v2, self.scale_increase_v2))
 
     def set_offset(self, value):
         self.grid_offset_x, self.grid_offset_y = value
@@ -55,7 +59,6 @@ class TileGrid:
     def get_overlap_index(self, value1, value2):
         col = (value1 - self.v1_grid_min + self.grid_offset_x) // self.grid_width
         row = (value2 - self.v2_grid_min + self.grid_offset_y) // self.grid_height
-
         index = int(row + col * self.n_columns)
         return index
 
@@ -64,11 +67,12 @@ class QTable:
     def __init__(self):
         self.grid_size = self.grid_columns, self.grid_rows = 8, 8
 
-        self.n_grids = 10
+        self.n_grids = 2
         self.n_actions = 3
 
-        self.tile_coder = TileCoding(self.n_grids, (-1.2, 0.6), (-.07, .07))
-        self.parameter_vector = np.zeros(self.n_grids * self.grid_rows * self.grid_columns + self.n_actions)
+        self.tile_coder = TileCoding(self.n_grids, (-1.2, 0.6), (-0.07, 0.07))
+        self.parameter_vector = np.zeros(self.n_grids * self.grid_rows * self.grid_columns + self.n_actions,
+                                         dtype=np.float64)
 
     def _get_value(self, state, action):
         v1, v2 = state
@@ -80,56 +84,80 @@ class QTable:
         for action in range(self.n_actions):
             values[action] = self._get_value(state, action)
 
-        return np.argmax(values)
+        actions = np.array([0, 1, 2])
+
+        p = 1 - 0.2 + 0.2 / len(actions)
+        prob = np.ones(3) * 0.2 / len(actions)
+        prob[np.argmax(values)] = p
+
+        return np.random.choice(actions, p=prob)
 
     def _gradient(self, state, action):
-        h = 0.001
-        gradients = np.zeros(self.parameter_vector.size)
+        def linear_function(w, f):
+            return tf.tensordot(w, f, axes=1)
 
-        for i, val in enumerate(self.parameter_vector):
+        weights = tf.Variable(self.parameter_vector, dtype=tf.float32)
 
-            temp = self.parameter_vector[i]
+        v1, v2 = state
+        features = tf.constant(self.tile_coder.get_feature_vector(v1, v2, action), dtype=tf.float32)
 
-            self.parameter_vector[i] -= h/2
-            current_val = self._get_value(state, action)
+        with tf.GradientTape() as tape:
+            y = linear_function(weights, features)
+        gradients = tape.gradient(y, weights)
 
-            self.parameter_vector[i] += h
-            new_val = self._get_value(state, action)
-
-            self.parameter_vector[i] = temp
-            gradients[i] = (new_val - current_val) / h
-
-        return gradients
+        return gradients.numpy()
 
     def update(self, state, action, next_state, next_action, reward):
-        error = reward + (self._get_value(next_state, next_action) * 0.8 - self._get_value(state, action))
+        error = reward + (0.8 * self._get_value(next_state, next_action) - self._get_value(state, action))
         gradient = self._gradient(state, action)
         self.parameter_vector += error * 0.2 * gradient
 
     def update_terminal(self, state, action, reward):
-        error = reward - self._get_value(state, action)
+        error = reward - 0.8 * self._get_value(state, action)
         gradient = self._gradient(state, action)
         self.parameter_vector += error * gradient
 
 
 def learn():
+    N_EPISODES = 1
+    N_AGENTS = 1
     env = gym.make('MountainCar-v0').env
-    q = QTable()
-    N_EPISODES = 10
-    for n_episode in range(N_EPISODES):
-        print(n_episode)
-        observation = env.reset()
-        action = q.get_optimal_policy(observation)
-        while True:
-            next_observation, reward, done, info = env.step(action)
-            if done:
-                q.update_terminal(observation, action, reward)
-                break
-            next_action = q.get_optimal_policy(next_observation)
-            q.update(observation, action, next_observation, next_action, reward)
-            action = next_action
-            observation = next_observation
-    env.close()
+    agent_returns = np.zeros((N_AGENTS, N_EPISODES))
+    try:
+        with open('mountain_car_q_table.pk1', 'rb') as qt:
+            q = pickle.load(qt)
+    except:
+        q = QTable()
+
+    for n_agent in range(N_AGENTS):
+        for n_episode in range(N_EPISODES):
+            print(n_episode)
+            observation = env.reset()
+            action = q.get_optimal_policy(observation)
+            total_return = 0
+            while True:
+                next_observation, reward, done, info = env.step(action)
+                total_return += reward
+                #env.render()
+                if done:
+                    q.update_terminal(observation, action, reward)
+                    break
+                next_action = q.get_optimal_policy(next_observation)
+                q.update(observation, action, next_observation, next_action, reward)
+                action = next_action
+                observation = next_observation
+            agent_returns[0][n_episode] = total_return
+        env.close()
+
+    import matplotlib.pyplot as plt
+
+    print(agent_returns)
+    plt.plot(np.mean(agent_returns, axis=0))
+    plt.show()
+
+    with open('mountain_car_q_table.pk1', 'wb') as handle:
+        pickle.dump(q, handle, pickle.HIGHEST_PROTOCOL)
+
     print(q.parameter_vector)
 
 
