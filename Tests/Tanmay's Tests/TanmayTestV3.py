@@ -43,24 +43,24 @@ session = tf.Session(config=config)
 plot = True
 
 seed = 1
-num_episodes = 1500
-max_steps = 3000
+num_episodes = 800
+max_steps = 1000
 exploring_starts = 5
 average_of = 25
 
-render_list = []  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
+render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 
 
 class Agent:
     epsilon = 1
     learn_start = 5000
-    gamma = 0.98
+    gamma = 0.99
     alpha = 0.01  # 0.005
     # alpha2 = 0.005
-    tau = 0.01
+    tau = 0.001
     decay = 0.999  # 995
     # noise = OUNoise(1, seed, mu=0, theta=0.15, sigma=0.2)  # [0] #np.random.normal(0, 0.2, 1000)
-    mem_len = 1.5e4  # 1e4
+    mem_len = 1.5e4  # 1.5e4
     memory = deque(maxlen=int(mem_len))
 
     def __init__(self, env, seed):
@@ -70,7 +70,7 @@ class Agent:
         self.env.seed(seed)
         self.model = self.createModel()
         self.target_model = self.createModel()
-        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.20,
+        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.15,
                              sigma=0.25)  # [0] #np.random.normal(0, 0.2, 1000)
         self.state_action_model = self.createModel(self.env.observation_space.shape[0] + self.env.action_space.shape[0])
         self.state_action_target_model = self.createModel(
@@ -84,24 +84,30 @@ class Agent:
         if input is None:
             input = self.env.observation_space.shape[0]
         # print(input)
-        model.add(Dense(12, input_dim=input, activation="relu"))  # 24
-        model.add(Dense(24, activation="relu"))  # 48
-        model.add(Dense(12, activation="relu"))  # 24
+        # model.add(Dense(256, input_dim=input, activation="relu"))  # 24
+        # model.add(Dense(512, activation="relu"))  # 48
+        # model.add(Dense(256, activation="relu"))  # 24
         # self.env.action_space.n))
-        if input is self.env.observation_space.shape[0]:
+        if input is self.env.observation_space.shape[0]:  # Actor
+            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
+            model.add(Dense(24, activation="relu"))  # 48
+            model.add(Dense(12, activation="relu"))  # 24
             model.add(Dense(1, activation="tanh"))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 100,
                 decay_steps=10000,
-                decay_rate=0.9999)
+                decay_rate=1)
             model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
-        else:
+        else:  # Critic
+            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
+            model.add(Dense(24, activation="linear"))  # 48
+            model.add(Dense(12, activation="linear"))  # 24
             model.add(Dense(1))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 10,
                 decay_steps=10000,
-                decay_rate=0.9999)
-            model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
+                decay_rate=1)
+            model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
         # model.compile(loss="mean_squared_error", optimizer=SGD(lr=self.alpha))
         return model
 
@@ -109,7 +115,7 @@ class Agent:
         self.memory.append([state, action, reward, next_state, terminal])
 
     def replay(self):
-        batch_size = 64  # 32
+        batch_size = 32  # 32
         state_update = np.zeros([batch_size, self.env.observation_space.shape[0]])
         target_update = np.zeros(batch_size)
         Q_expected = np.zeros([batch_size, self.env.observation_space.shape[0] + self.env.action_space.shape[0]])
@@ -194,7 +200,7 @@ class Agent:
         # else:
         # print((self.model.predict(state)))
         # action = action_us*2 - 1
-        return np.clip(self.model.predict(state) + self.noise.sample(), -1,
+        return np.clip(1*self.model.predict(state) + self.noise.sample(), -1,
                        1)  # np.argmax(self.model.predict(state))  # action
 
 
@@ -212,8 +218,8 @@ def main():
         except:
             pass
 
-    # env = gym.make('MountainCarContinuous-v0').env
-    env = gym.make('Pendulum-v0').env
+    env = gym.make('MountainCarContinuous-v0').env
+    # env = gym.make('Pendulum-v0').env
 
     try:
         with open('agent.pk1', 'rb') as qt:
@@ -252,16 +258,16 @@ def main():
             # print(state, action)
             # print(step)
             # print(total_reward)
-            next_state, reward, terminal, info = env.step(-action)  # env.action_space.sample())  # take a random action
+            next_state, reward, terminal, info = env.step(action)  # env.action_space.sample())  # take a random action
             next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
-            reward += (state[0][0]+1.2)*(0.0001)
+            total_reward += reward
+            reward += ((state[0][0]+1.2)**2)*(0.001)
             # print(reward)
             agent.train(state, action, reward, next_state, terminal, step)
             state = next_state
-            if state[0][0] >= 0.5:
-                # reward += 100
-                pass
-            total_reward += reward
+            # if state[0][0] >= 0.5:
+            #     # reward += 100
+            #     pass
             if step % 250 == 0 and episode >= exploring_starts:
                 agent.reset()
             if terminal:
@@ -322,14 +328,14 @@ def main():
         #     with open('agent.pk1', 'wb') as handle:
         #         pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
             data = DataStore(averages, rewards)
-            with open('data2.pk1', 'wb') as handle:
+            with open('data_4.pk1', 'wb') as handle:
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
-    env.close()
+        env.close()
 
     # with open('agent.pk1', 'wb') as handle:
     #     pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
-    with open('data2.pk1', 'wb') as handle:
+    with open('data_4.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
 

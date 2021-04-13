@@ -44,7 +44,7 @@ plot = True
 
 seed = 1
 num_episodes = 800
-max_steps = 3000
+max_steps = 1500
 exploring_starts = 5
 average_of = 25
 
@@ -60,7 +60,7 @@ class Agent:
     tau = 0.001
     decay = 0.999  # 995
     # noise = OUNoise(1, seed, mu=0, theta=0.15, sigma=0.2)  # [0] #np.random.normal(0, 0.2, 1000)
-    mem_len = 15e3  # 1.5e4
+    mem_len = 4.5e4  # 1.5e4
     memory = deque(maxlen=int(mem_len))
 
     def __init__(self, env, seed):
@@ -328,14 +328,14 @@ def main():
         #     with open('agent.pk1', 'wb') as handle:
         #         pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
             data = DataStore(averages, rewards)
-            with open('data_3.pk1', 'wb') as handle:
+            with open('data_6.pk1', 'wb') as handle:
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
         env.close()
 
     # with open('agent.pk1', 'wb') as handle:
     #     pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
-    with open('data_3.pk1', 'wb') as handle:
+    with open('data_6.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
 

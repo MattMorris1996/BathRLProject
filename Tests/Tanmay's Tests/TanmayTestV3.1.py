@@ -40,27 +40,27 @@ config = tf.ConfigProto(intra_op_parallelism_threads=NUM_PARALLEL_EXEC_UNITS,
 session = tf.Session(config=config)
 
 
-plot = False
+plot = True
 
 seed = 1
-num_episodes = 15000
+num_episodes = 800
 max_steps = 5000
-exploring_starts = 2
+exploring_starts = 5
 average_of = 25
 
-render_list = []  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
+render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 
 
 class Agent:
     epsilon = 1
     learn_start = 5000
-    gamma = 0.98
+    gamma = 0.99
     alpha = 0.01  # 0.005
     # alpha2 = 0.005
-    tau = 0.1
+    tau = 0.001
     decay = 0.999  # 995
     # noise = OUNoise(1, seed, mu=0, theta=0.15, sigma=0.2)  # [0] #np.random.normal(0, 0.2, 1000)
-    mem_len = 1.5e4  # 1e4
+    mem_len = 2.5e4  # 1.5e4
     memory = deque(maxlen=int(mem_len))
 
     def __init__(self, env, seed):
@@ -70,7 +70,7 @@ class Agent:
         self.env.seed(seed)
         self.model = self.createModel()
         self.target_model = self.createModel()
-        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.20,
+        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.15,
                              sigma=0.25)  # [0] #np.random.normal(0, 0.2, 1000)
         self.state_action_model = self.createModel(self.env.observation_space.shape[0] + self.env.action_space.shape[0])
         self.state_action_target_model = self.createModel(
@@ -84,24 +84,30 @@ class Agent:
         if input is None:
             input = self.env.observation_space.shape[0]
         # print(input)
-        model.add(Dense(12, input_dim=input, activation="relu"))  # 24
-        model.add(Dense(24, activation="relu"))  # 48
-        model.add(Dense(12, activation="relu"))  # 24
+        # model.add(Dense(256, input_dim=input, activation="relu"))  # 24
+        # model.add(Dense(512, activation="relu"))  # 48
+        # model.add(Dense(256, activation="relu"))  # 24
         # self.env.action_space.n))
-        if input is self.env.observation_space.shape[0]:
+        if input is self.env.observation_space.shape[0]:  # Actor
+            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
+            model.add(Dense(24, activation="relu"))  # 48
+            model.add(Dense(12, activation="relu"))  # 24
             model.add(Dense(1, activation="tanh"))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 100,
                 decay_steps=10000,
-                decay_rate=0.999)
+                decay_rate=1)
             model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
-        else:
+        else:  # Critic
+            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
+            model.add(Dense(24, activation="linear"))  # 48
+            model.add(Dense(12, activation="linear"))  # 24
             model.add(Dense(1))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 10,
                 decay_steps=10000,
-                decay_rate=0.999)
-            model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
+                decay_rate=1)
+            model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
         # model.compile(loss="mean_squared_error", optimizer=SGD(lr=self.alpha))
         return model
 
@@ -109,11 +115,11 @@ class Agent:
         self.memory.append([state, action, reward, next_state, terminal])
 
     def replay(self):
-        batch_size = 64  # 32
-        state_update = np.zeros([batch_size, 2])
+        batch_size = 32  # 32
+        state_update = np.zeros([batch_size, self.env.observation_space.shape[0]])
         target_update = np.zeros(batch_size)
-        Q_expected = np.zeros([batch_size, 3])
-        Q_expected_temp = np.zeros([batch_size, 3])
+        Q_expected = np.zeros([batch_size, self.env.observation_space.shape[0] + self.env.action_space.shape[0]])
+        Q_expected_temp = np.zeros([batch_size, self.env.observation_space.shape[0] + self.env.action_space.shape[0]])
         Q_target = np.zeros(batch_size)
         if len(self.memory) < batch_size:
             return
@@ -131,14 +137,14 @@ class Agent:
             Q_expected_temp[idx][2] = action[0]
             state_update[idx] = state
             # print(Q_expected[idx].reshape(1, 3)[0])
-            Q_target_next = self.state_action_target_model.predict(Q_expected[idx].reshape(1, 3))
+            Q_target_next = self.state_action_target_model.predict(Q_expected[idx].reshape(self.env.action_space.shape[0], self.env.observation_space.shape[0] + self.env.action_space.shape[0]))
             # Q_current = self.state_action_target_model.predict(Q_expected_temp[idx].reshape(1, 3))
             # print(reward)
             Q_target[idx] = (reward + (self.gamma * Q_target_next[0]) * (1 - terminal))  # - Q_current
             # Q_expected[idx] = self.state_action_model(state, action)
             Q_expected_temp[idx][2] = action_pred[0]
 
-            target_update[idx] = (self.state_action_model.predict(Q_expected_temp[idx].reshape(1, 3)))  # +action
+            target_update[idx] = (self.state_action_model.predict(Q_expected_temp[idx].reshape(self.env.action_space.shape[0], self.env.observation_space.shape[0] + self.env.action_space.shape[0])))  # +action
             # print(self.state_action_model.predict(Q_expected_temp[idx].reshape(1, 3)))
             # Q_expected[idx][0] = state[0][0]
             # Q_expected[idx][1] = state[0][1]
@@ -194,7 +200,7 @@ class Agent:
         # else:
         # print((self.model.predict(state)))
         # action = action_us*2 - 1
-        return np.clip(self.model.predict(state) + self.noise.sample(), -1,
+        return np.clip(1*self.model.predict(state) + self.noise.sample(), -1,
                        1)  # np.argmax(self.model.predict(state))  # action
 
 
@@ -213,6 +219,8 @@ def main():
             pass
 
     env = gym.make('MountainCarContinuous-v0').env
+    # env = gym.make('Pendulum-v0').env
+
     try:
         with open('agent.pk1', 'rb') as qt:
             agent = pickle.load(qt)
@@ -232,10 +240,9 @@ def main():
     # fig.canvas.draw()
     # plt.show(block=False)
 
-
     for episode in range(num_episodes):
         action = np.zeros(1)
-        state = env.reset().reshape(1, 2)
+        state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])#1, 2)
         total_reward = 0
         for step in range(max_steps):
             # if msvcrt.kbhit():
@@ -251,16 +258,16 @@ def main():
             # print(state, action)
             # print(step)
             # print(total_reward)
-            next_state, reward, terminal, info = env.step(-action)  # env.action_space.sample())  # take a random action
-            next_state = next_state.reshape(1, 2)
-            # reward += (state[0][0]+0.4)*(0.0001)
+            next_state, reward, terminal, info = env.step(action)  # env.action_space.sample())  # take a random action
+            next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
+            total_reward += reward
+            reward += ((state[0][0]+1.2)**2)*(0.001)
             # print(reward)
             agent.train(state, action, reward, next_state, terminal, step)
             state = next_state
-            if state[0][0] >= 0.5:
-                # reward += 100
-                pass
-            total_reward += reward
+            # if state[0][0] >= 0.5:
+            #     # reward += 100
+            #     pass
             if step % 250 == 0 and episode >= exploring_starts:
                 agent.reset()
             if terminal:
@@ -296,15 +303,15 @@ def main():
 
             break
 
-        # # fig, ax = plt.subplots(2)
-        # plt.subplot(2, 1, 1)
-        # plt.plot(averages)
-        # plt.subplot(2, 1, 2)
-        # plt.plot(rewards)
-        # # plt.draw()
-        # # gcf().canvas.flush_events()
-        # plt.pause(0.0001)
-        # plt.clf()
+        # fig, ax = plt.subplots(2)
+        plt.subplot(2, 1, 1)
+        plt.plot(averages)
+        plt.subplot(2, 1, 2)
+        plt.plot(rewards)
+        # plt.draw()
+        # gcf().canvas.flush_events()
+        plt.pause(0.0001)
+        plt.clf()
 
         # ax1.plot(averages)
         # ax2.plot(rewards)
@@ -315,19 +322,20 @@ def main():
         # fig.canvas.draw()
         # fig.canvas.flush_events()
 
+        agent.noise.reset()
 
         if episode % 50 == 0:
         #     with open('agent.pk1', 'wb') as handle:
         #         pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
             data = DataStore(averages, rewards)
-            with open('data.pk1', 'wb') as handle:
+            with open('data_5.pk1', 'wb') as handle:
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
-    env.close()
+        env.close()
 
     # with open('agent.pk1', 'wb') as handle:
     #     pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
-    with open('data.pk1', 'wb') as handle:
+    with open('data_5.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
 
