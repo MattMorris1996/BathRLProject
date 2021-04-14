@@ -43,10 +43,14 @@ session = tf.Session(config=config)
 plot = True
 
 seed = 1
-num_episodes = 800
-max_steps = 1500
+num_episodes = 1000
+max_steps = 10000
+min_steps = 1500
 exploring_starts = 5
 average_of = 25
+
+step_decay = 0.995
+augment = 0.01
 
 render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 
@@ -92,9 +96,9 @@ class Agent:
             model.add(Dense(12, input_dim=input, activation="linear"))  # 24
             model.add(Dense(24, activation="relu"))  # 48
             model.add(Dense(12, activation="relu"))  # 24
-            model.add(Dense(self.env.action_space.shape[0], activation="tanh"))
+            model.add(Dense(1, activation="tanh"))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-                initial_learning_rate=self.alpha / 50,
+                initial_learning_rate=self.alpha / 100,
                 decay_steps=10000,
                 decay_rate=1)
             model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
@@ -210,7 +214,7 @@ class DataStore:
         self.rewards = rewards
 
 
-def main():
+def main(max_steps):
     if plot:
         try:
             with open('data.pk1', 'rb') as qt:
@@ -219,7 +223,7 @@ def main():
             pass
 
     env = gym.make('MountainCarContinuous-v0').env
-    # env = gym.make('LunarLanderContinuous-v2').env
+    # env = gym.make('Pendulum-v0').env
 
     try:
         with open('agent.pk1', 'rb') as qt:
@@ -242,7 +246,7 @@ def main():
 
     for episode in range(num_episodes):
         action = np.zeros(1)
-        state = env.reset().reshape(1, env.observation_space.shape[0])#env.action_space.shape[0], 2)
+        state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])#1, 2)
         total_reward = 0
         for step in range(max_steps):
             # if msvcrt.kbhit():
@@ -261,7 +265,7 @@ def main():
             next_state, reward, terminal, info = env.step(action)  # env.action_space.sample())  # take a random action
             next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
             total_reward += reward
-            reward += ((state[0][0]+1.2)**2)*(0.01)
+            reward += ((state[0][0]+1.2)**2)*(augment)
             # print(reward)
             agent.train(state, action, reward, next_state, terminal, step)
             state = next_state
@@ -303,15 +307,15 @@ def main():
 
             break
 
-        # fig, ax = plt.subplots(2)
-        plt.subplot(2, 1, 1)
-        plt.plot(averages)
-        plt.subplot(2, 1, 2)
-        plt.plot(rewards)
-        # plt.draw()
-        # gcf().canvas.flush_events()
-        plt.pause(0.0001)
-        plt.clf()
+        # # fig, ax = plt.subplots(2)
+        # plt.subplot(2, 1, 1)
+        # plt.plot(averages)
+        # plt.subplot(2, 1, 2)
+        # plt.plot(rewards)
+        # # plt.draw()
+        # # gcf().canvas.flush_events()
+        # plt.pause(0.0001)
+        # plt.clf()
 
         # ax1.plot(averages)
         # ax2.plot(rewards)
@@ -324,22 +328,24 @@ def main():
 
         agent.noise.reset()
 
+        max_steps = int(max(min_steps, max_steps*step_decay))
+
         if episode % 50 == 0:
         #     with open('agent.pk1', 'wb') as handle:
         #         pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
             data = DataStore(averages, rewards)
-            with open('data_6.pk1', 'wb') as handle:
+            with open('data_14.pk1', 'wb') as handle:
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
         env.close()
 
     # with open('agent.pk1', 'wb') as handle:
     #     pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
-    with open('data_6.pk1', 'wb') as handle:
+    with open('data_14.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == "__main__":
     # print(tf.__version__)
     # print(device_lib.list_local_devices())
-    main()
+    main(max_steps)

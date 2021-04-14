@@ -43,10 +43,13 @@ session = tf.Session(config=config)
 plot = True
 
 seed = 1
-num_episodes = 800
-max_steps = 3000
+num_episodes = 2000
+max_steps = 1500
 exploring_starts = 5
 average_of = 25
+
+step_decay = 1#0.99
+augment = 0.001
 
 render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 
@@ -58,9 +61,9 @@ class Agent:
     alpha = 0.01  # 0.005
     # alpha2 = 0.005
     tau = 0.001
-    decay = 0.999  # 995
+    decay = 0.995  # 995
     # noise = OUNoise(1, seed, mu=0, theta=0.15, sigma=0.2)  # [0] #np.random.normal(0, 0.2, 1000)
-    mem_len = 15e3  # 1.5e4
+    mem_len = 4.5e4  # 1.5e4
     memory = deque(maxlen=int(mem_len))
 
     def __init__(self, env, seed):
@@ -92,9 +95,9 @@ class Agent:
             model.add(Dense(12, input_dim=input, activation="linear"))  # 24
             model.add(Dense(24, activation="relu"))  # 48
             model.add(Dense(12, activation="relu"))  # 24
-            model.add(Dense(self.env.action_space.shape[0], activation="tanh"))
+            model.add(Dense(1, activation="tanh"))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-                initial_learning_rate=self.alpha / 50,
+                initial_learning_rate=self.alpha / 100,
                 decay_steps=10000,
                 decay_rate=1)
             model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
@@ -210,7 +213,7 @@ class DataStore:
         self.rewards = rewards
 
 
-def main():
+def main(max_steps):
     if plot:
         try:
             with open('data.pk1', 'rb') as qt:
@@ -219,7 +222,7 @@ def main():
             pass
 
     env = gym.make('MountainCarContinuous-v0').env
-    # env = gym.make('LunarLanderContinuous-v2').env
+    # env = gym.make('Pendulum-v0').env
 
     try:
         with open('agent.pk1', 'rb') as qt:
@@ -242,7 +245,7 @@ def main():
 
     for episode in range(num_episodes):
         action = np.zeros(1)
-        state = env.reset().reshape(1, env.observation_space.shape[0])#env.action_space.shape[0], 2)
+        state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])#1, 2)
         total_reward = 0
         for step in range(max_steps):
             # if msvcrt.kbhit():
@@ -261,7 +264,7 @@ def main():
             next_state, reward, terminal, info = env.step(action)  # env.action_space.sample())  # take a random action
             next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
             total_reward += reward
-            reward += ((state[0][0]+1.2)**2)*(0.01)
+            reward += ((state[0][0]+1.2)**2)*(augment)
             # print(reward)
             agent.train(state, action, reward, next_state, terminal, step)
             state = next_state
@@ -303,43 +306,34 @@ def main():
 
             break
 
-        # fig, ax = plt.subplots(2)
-        plt.subplot(2, 1, 1)
-        plt.plot(averages)
-        plt.subplot(2, 1, 2)
-        plt.plot(rewards)
-        # plt.draw()
-        # gcf().canvas.flush_events()
-        plt.pause(0.0001)
-        plt.clf()
 
-        # ax1.plot(averages)
-        # ax2.plot(rewards)
-
-        # line1.set_data(len(averages), averages)
-        # line2.set_data(len(rewards), rewards)
-
-        # fig.canvas.draw()
-        # fig.canvas.flush_events()
+        # plt.subplot(2, 1, 1)
+        # plt.plot(averages)
+        # plt.subplot(2, 1, 2)
+        # plt.plot(rewards)
+        # plt.pause(0.0001)
+        # plt.clf()
 
         agent.noise.reset()
+
+        max_steps = int(max(500, max_steps*step_decay))
 
         if episode % 50 == 0:
         #     with open('agent.pk1', 'wb') as handle:
         #         pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
             data = DataStore(averages, rewards)
-            with open('data_3.pk1', 'wb') as handle:
+            with open('data_18.pk1', 'wb') as handle:
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
         env.close()
 
     # with open('agent.pk1', 'wb') as handle:
     #     pickle.dump(agent, handle, pickle.HIGHEST_PROTOCOL)
-    with open('data_3.pk1', 'wb') as handle:
+    with open('data_18.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == "__main__":
     # print(tf.__version__)
     # print(device_lib.list_local_devices())
-    main()
+    main(max_steps)
