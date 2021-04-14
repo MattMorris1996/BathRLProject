@@ -216,19 +216,19 @@ def DDPG(episodes = 500):
 
             reward_list.append(total_reward)
             agent.sd = max(agent.sd - 0.01, 0.1)
-            if total_reward > 50:
-                r = agent.test()
-                local_mean = np.mean(r)
-                print(f"episodeL {i + 1}, current reward: {total_reward} , max reward: {np.max(r)},"
-                      f" mean reward: {local_mean}")
+        if total_reward > 50:
+            r = agent.test()
+            local_mean = np.mean(r)
+            print(f"episodeL {i + 1}, current reward: {total_reward} , max reward: {np.max(r)},"
+                  f" mean reward: {local_mean}")
 
-                if local_mean > mean_reward:
-                    mean_reward = local_mean
-                    agent.save()
-                    print("Saved")
+            if local_mean > mean_reward:
+                mean_reward = local_mean
+                agent.save()
+                print("Saved")
 
-            else:
-                print(f"episode: {i+1}, current reward: {total_reward}")
+        else:
+            print(f"episode: {i+1}, current reward: {total_reward}")
     return reward_list
 
 
@@ -239,4 +239,4 @@ def DDPG(episodes = 500):
 
 
 if __name__ == "__main__":
-    reward = DDPG()
+    reward = DDPG(episodes= 600)
