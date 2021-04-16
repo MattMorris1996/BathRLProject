@@ -43,13 +43,13 @@ session = tf.Session(config=config)
 plot = True
 
 seed = 1
-num_episodes = 2000
+num_episodes = 1000
 max_steps = 1500
 exploring_starts = 5
 average_of = 25
 
 step_decay = 1#0.99
-augment = 0.01
+augment = 0.001
 
 render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 
@@ -61,7 +61,7 @@ class Agent:
     alpha = 0.01  # 0.005
     # alpha2 = 0.005
     tau = 0.001
-    decay = 0.999  # 995
+    decay = 0.995  # 995
     # noise = OUNoise(1, seed, mu=0, theta=0.15, sigma=0.2)  # [0] #np.random.normal(0, 0.2, 1000)
     mem_len = 4.5e4  # 1.5e4
     memory = deque(maxlen=int(mem_len))

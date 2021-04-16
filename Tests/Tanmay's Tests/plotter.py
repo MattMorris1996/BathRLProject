@@ -1,15 +1,15 @@
 import pickle
 import matplotlib.pyplot as plt
 
-plot = False
-# plot = True
+# plot = False
+plot = True
 # plot_opts = [0, 10, 6]
-plot_opts = [6, 17, 18]
-# plot_opts = [16]
+# plot_opts = [6, 13, 10, 17, 18]
+plot_opts = ['ddpg']
 # plot_opts = list(range(0,15))
-tests = 18
+tests = 19
 
-# data_0: buffer;1.5e4, theta;0.2, mu;0.25, augment;0.001, max_step;3000, actor_lr;/100, critic_lr;/10
+# data_0: buffer;1.5e4, theta;0.2, mu;0.25, augment;0.001, max_step;3000, actor_lr;/100, critic_lr;/10, eps;decay(0.999)
 # data_1: bufffer;2.4e4, theta;0.1, mu;0.15, augment;0.01
 # data_2: buffer;5e3
 # data_3: buffer;15e3, theta;0.08, mu;0.125, augment;0.01
@@ -28,6 +28,7 @@ tests = 18
 # data_16: data_15;rerun, actor_lr;/200, critic_lr;/50
 # data_17: data_6;rerun, augment;0.001
 # data_18: data_6;rerun, eps;decay(0.995), augment;0.001
+# data_19: data_6;rerun, eps;decay(0.995), augment;0
 
 class DataStore:
     def __init__(self, averages, rewards):
@@ -60,9 +61,9 @@ def main():
                 with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
                     data = pickle.load(qt)
                     plt.subplot(len(plot_opts), 2, 2*dat+1)
-                    plt.plot(data.averages[:1000])
+                    plt.plot(data.averages[:150])
                     plt.subplot(len(plot_opts), 2, 2*dat+2)
-                    plt.plot(data.rewards[:1000])
+                    plt.plot(data.rewards[:150])
             except:
                 pass
         # try:

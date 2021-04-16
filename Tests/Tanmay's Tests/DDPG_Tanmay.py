@@ -4,9 +4,14 @@ import random
 import numpy as np
 import pickle
 from tensorflow import keras
-from keras.models import Sequential
-from keras.layers import Dense
+# from keras.models import Sequential
+# from keras.layers import Dense
 from keras.optimizers import Adam
+
+import os
+import imageio
+from PIL import Image
+import PIL.ImageDraw as ImageDraw
 
 from Noise import OUNoise
 
@@ -33,39 +38,71 @@ session = tf.Session(config=config)
 
 
 live_plot = False
+save = True
 
 seed = 1
 num_episodes = 10000
-max_steps = 10000
-min_steps = 1500
-exploring_starts = 5
-average_of = 100
+max_steps = 1000
+min_steps = 1000
+exploring_starts = 1
+average_of = 25
 
-step_decay = 0.995  # 0.99
-augment = 0.01
+step_decay = 1  # 0.995
+augment = 0  # 0.001
 
-render_list = []#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
+render_list = [0, 25, 50, 100, 120, 150]#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
+
+class Actor(keras.Model):
+    @tf.function
+    def train_step(self, data):
+        critic_value = data
+
+        with tf.GradientTape() as tape:
+        # actions = self.model(states, training=True)
+        # critic_value = self.state_action_model(states_actions, training=True)
+        #     critic_value = self.state_action_model(states_actions)
+            actor_loss = -tf.math.reduce_mean(critic_value)
+
+        actor_grad = tape.gradient(actor_loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(actor_grad, self.trainable_variables))
+
+class Critic(keras.Model):
+    @tf.function
+    def train_step(self, data):
+
+        with tf.GradientTape() as tape:
+            y_pred = self(data, training=True)  # Forward pass
+            # Compute the loss value
+            # (the loss function is configured in `compile()`)
+            loss = self.compiled_loss(data, y_pred, regularization_losses=self.losses)
+
+        critic_grad = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(critic_grad, self.trainable_variables))
 
 
 class Agent:
-    epsilon = 1
-    learn_start = 5000
+    epsilon = 0#1
+    epsilon_min = 0#0.1
+    learn_start = 100
     gamma = 0.99
-    alpha = 0.01  # 0.005
-    tau = 0.001
-    decay = 0.999  # 995
-    mem_len = 4.5e4  # 1.5e4
+    alpha = 0.001  # 0.005
+    tau = 0.005
+    decay = 0.99  # 995
+    mem_len = 1e6  # 4.5e5  # 1.5e4
+
     memory = deque(maxlen=int(mem_len))
 
     def __init__(self, env, seed):
 
         self.env = env
         random.seed(seed)
+        np.random.seed(seed)
+        # tf.random.set_seed(seed)
         self.env.seed(seed)
         self.model = self.createModel()
         self.target_model = self.createModel()
-        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.05,
-                             sigma=0.1)  # [0] #np.random.normal(0, 0.2, 1000)
+        self.noise = OUNoise(self.env.action_space.shape[0], seed, theta=0.2,
+                             sigma=0.5)  # [0] #np.random.normal(0, 0.2, 1000)
         self.state_action_model = self.createModel(self.env.observation_space.shape[0] + self.env.action_space.shape[0])
         self.state_action_target_model = self.createModel(
             self.env.observation_space.shape[0] + self.env.action_space.shape[0])
@@ -73,28 +110,38 @@ class Agent:
         self.reset()
 
     def createModel(self, input=None):
-        model = Sequential()
+        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
         if input is None:
-            input = self.env.observation_space.shape[0]
-        if input is self.env.observation_space.shape[0]:  # Actor
-            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
-            model.add(Dense(24, activation="relu"))  # 48
-            model.add(Dense(12, activation="relu"))  # 24
-            model.add(Dense(1, activation="tanh"))
-            lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-                initial_learning_rate=self.alpha / 100,
-                decay_steps=10000,
-                decay_rate=1)
-            model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
-        else:  # Critic
-            model.add(Dense(12, input_dim=input, activation="linear"))  # 24
-            model.add(Dense(24, activation="linear"))  # 48
-            model.add(Dense(12, activation="linear"))  # 24
-            model.add(Dense(1))
+            input = self.env.observation_space.shape[0] # Actor
+            inputs = keras.Input(shape=input)
+            hidden = keras.layers.Dense(12, activation="relu")(inputs)
+            hidden = keras.layers.Dense(24, activation="relu")(hidden)
+            outputs = keras.layers.Dense(1, activation="tanh", kernel_initializer=last_init)(hidden)
+            model = Actor(inputs, outputs)
+            # model.add(Dense(256, input_dim=input, activation="linear"))  # 24
+            # model.add(Dense(512, activation="relu"))  # 48
+            # model.add(Dense(256, activation="linear"))  # 24
+            # model.add(Dense(1, activation="tanh", kernel_initializer=last_init))
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 10,
-                decay_steps=10000,
-                decay_rate=1)
+                decay_steps=1e9,
+                decay_rate=0.5)
+            model.compile(loss="huber_loss", optimizer=Adam(learning_rate=lr_schedule))
+        else:  # Critic
+            inputs = keras.Input(shape=input)
+            hidden = keras.layers.Dense(12, activation="relu")(inputs)
+            hidden = keras.layers.Dense(24, activation="relu")(hidden)
+            outputs = keras.layers.Dense(1, activation="linear", kernel_initializer=last_init)(hidden)
+            # model = Sequential()
+            # model.add(Dense(12, input_dim=input, activation="linear"))  # 24
+            # model.add(Dense(24, activation="relu"))  # 48
+            # model.add(Dense(12, activation="linear"))  # 24
+            # model.add(Dense(1))
+            lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+                initial_learning_rate=self.alpha / 1,
+                decay_steps=1e9,
+                decay_rate=0.5)
+            model = Critic(inputs, outputs)
             model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
         return model
 
@@ -111,6 +158,8 @@ class Agent:
         if len(self.memory) < batch_size:
             return
         samples = random.sample(self.memory, batch_size)
+        states_actions = []
+        states = []
         for idx, sample in enumerate(samples):
             state, action, reward, next_state, terminal = sample
             next_action = self.target_model.predict(next_state)
@@ -126,10 +175,23 @@ class Agent:
             Q_target_next = self.state_action_target_model.predict(Q_expected[idx].reshape(self.env.action_space.shape[0], self.env.observation_space.shape[0] + self.env.action_space.shape[0]))
             Q_target[idx] = (reward + (self.gamma * Q_target_next[0]) * (1 - terminal))  # - Q_current
             Q_expected_temp[idx][2] = action_pred[0]
-
             target_update[idx] = (self.state_action_model.predict(Q_expected_temp[idx].reshape(self.env.action_space.shape[0], self.env.observation_space.shape[0] + self.env.action_space.shape[0])))  # +action
+            # states_actions.append(Q_expected_temp[idx].reshape(self.env.action_space.shape[0], self.env.observation_space.shape[0] + self.env.action_space.shape[0]))
+            # states.append(state.reshape(self.env.observation_space.shape[0]))
+
         self.model.fit(state_update, target_update, epochs=1, verbose=0)  # actor
         self.state_action_model.fit(Q_expected, Q_target, epochs=1, verbose=0)  # critic
+
+        # with tf.GradientTape() as tape:
+        #     #actions = self.model(states, training=True)
+        #     # critic_value = self.state_action_model(states_actions, training=True)
+        #     critic_value = self.state_action_model(states_actions)
+        #     actor_loss = -tf.math.reduce_mean(critic_value)
+        #
+        # actor_grad = tape.gradient(actor_loss, self.model.trainable_variables)
+        # self.model.optimizer.apply_gradients(zip(actor_grad, self.model.trainable_variables))
+        #
+        # del states, states_actions
 
     def trainTarget(self):
         weights = self.model.get_weights()
@@ -147,14 +209,14 @@ class Agent:
 
     def train(self, state, action, reward, next_state, terminal, steps):
         self.replayBuffer(state, action, reward, next_state, terminal)
-        if steps % 25 == 0 and len(self.memory) > self.learn_start:
+        if steps % 5 == 0 and len(self.memory) > self.learn_start:
             self.replay()
-        if steps % 50 == 0:
+        if steps % 25 == 0:
             self.trainTarget()
 
     def reset(self):
         self.epsilon *= self.decay
-        self.epsilon = max(self.epsilon / 1000, self.epsilon)
+        self.epsilon = max(self.epsilon_min, self.epsilon)
 
     def chooseAction(self, state):
         # self.epsilon *= self.decay
@@ -170,6 +232,19 @@ class DataStore:
         self.rewards = rewards
 
 
+def _label_with_episode_number(frame, episode_num):
+    im = Image.fromarray(frame)
+
+    drawer = ImageDraw.Draw(im)
+
+    if np.mean(im) < 128:
+        text_color = (255,255,255)
+    else:
+        text_color = (0,0,0)
+    drawer.text((im.size[0]/20,im.size[1]/18), f'Episode: {episode_num+1}', fill=text_color)
+
+    return im
+
 def main(max_steps):
     env = gym.make('MountainCarContinuous-v0').env
     # env = gym.make('Pendulum-v0').env
@@ -183,8 +258,12 @@ def main(max_steps):
         action = np.zeros(1)
         state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])#1, 2)
         total_reward = 0
+        frames = []
         for step in range(max_steps):
-            if episode in render_list:
+            if (episode in render_list) and save:
+                frame = env.render(mode='rgb_array')
+                frames.append(_label_with_episode_number(frame, episode_num=episode))
+            elif episode in render_list:
                 env.render()
                 pass
             action[0] = agent.chooseAction(state)
@@ -230,6 +309,8 @@ def main(max_steps):
                 pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
         env.close()
+        if frames:
+            imageio.mimwrite(os.path.join('./videos/', 'agent_ep_{}.gif'.format(episode)), frames, fps=60)
 
     with open('data_ddpg.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
