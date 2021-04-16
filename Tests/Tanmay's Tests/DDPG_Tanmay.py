@@ -241,7 +241,7 @@ def _label_with_episode_number(frame, episode_num):
         text_color = (255,255,255)
     else:
         text_color = (0,0,0)
-    drawer.text((im.size[0]/20,im.size[1]/18), f'Episode: {episode_num+1}', fill=text_color)
+    drawer.text((im.size[0]/20,im.size[1]/18), f'Episode: {episode_num}', fill=text_color)
 
     return im
 
@@ -311,6 +311,7 @@ def main(max_steps):
         env.close()
         if frames:
             imageio.mimwrite(os.path.join('./videos/', 'agent_ep_{}.gif'.format(episode)), frames, fps=60)
+            del frames
 
     with open('data_ddpg.pk1', 'wb') as handle:
         pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
