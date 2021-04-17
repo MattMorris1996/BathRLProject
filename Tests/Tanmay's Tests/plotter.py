@@ -5,11 +5,11 @@ import matplotlib.animation as animation
 
 # plot = False
 plot = True
-anim_plot = False
+anim_plot = True
 # anim_plot = True
 # plot_opts = [0, 10, 6]
 # plot_opts = [6, 13, 10, 17, 18]
-plot_opts = ['ddpg_success1']
+plot_opts = ['ddpg', 'ddpg_success1']
 # plot_opts = list(range(0,15))
 tests = 19
 
@@ -110,7 +110,7 @@ def main():
                         plt.subplot(len(plot_opts), 2, 2*dat+1)
                         plt.plot(data.averages[:limit])
                         plt.xlabel("Episode")
-                        plt.ylabel("Avg. Epsiodic Reward (of 25)")
+                        plt.ylabel("Avg. Epsiodic Reward (of 100)")
                         plt.subplot(len(plot_opts), 2, 2*dat+2)
                         plt.plot(data.rewards[:limit])
                         plt.xlabel("Episode")
