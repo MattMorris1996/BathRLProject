@@ -1,11 +1,15 @@
 import pickle
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 # plot = False
 plot = True
+anim_plot = False
+# anim_plot = True
 # plot_opts = [0, 10, 6]
 # plot_opts = [6, 13, 10, 17, 18]
-plot_opts = ['ddpg']
+plot_opts = ['ddpg_success1']
 # plot_opts = list(range(0,15))
 tests = 19
 
@@ -56,16 +60,64 @@ def main():
         pass
 
     if plot:
-        for dat in range(0,len(plot_opts)):
-            try:
-                with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
-                    data = pickle.load(qt)
-                    plt.subplot(len(plot_opts), 2, 2*dat+1)
-                    plt.plot(data.averages[:150])
-                    plt.subplot(len(plot_opts), 2, 2*dat+2)
-                    plt.plot(data.rewards[:150])
-            except:
-                pass
+        if anim_plot:
+            for dat in range(0,len(plot_opts)):
+                try:
+                    with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
+                        data = pickle.load(qt)
+                        point_a = 1000
+                        for limit, point in enumerate(data.averages):
+                            if point == point_a:
+                                break
+                            else:
+                                point_a = point
+                        fig = plt.figure()
+                        plt.xlabel("Episode")
+                        plt.ylabel("Episode Reward")
+                        ax = plt.axes(xlim=(0, limit), ylim=(-150, 100))
+                        line, = ax.plot([], [], lw=2)
+
+                        def init_graph():
+                            line.set_data([], [])
+                            return line,
+
+                        # animation function.  This is called sequentially
+                        def animate(i):
+                            x = np.linspace(0, i, i)
+                            y = data.averages[:i]
+                            line.set_data(x, y)
+                            return line,
+
+                        anim = animation.FuncAnimation(fig, animate, init_func=init_graph,
+                                                       frames=limit, interval=20, blit=True)
+                        anim.save('./videos/learning_curve_{}.mp4'.format(plot_opts[dat]), fps=30,
+                                  extra_args=['-vcodec', 'libx264'])
+                        plt.show()
+                except:
+                    pass
+
+        else:
+            for dat in range(0,len(plot_opts)):
+                try:
+                    with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
+                        data = pickle.load(qt)
+                        point_a = 1000
+                        for limit, point in enumerate(data.averages):
+                            if point == point_a:
+                                break
+                            else:
+                                point_a = point
+                        plt.subplot(len(plot_opts), 2, 2*dat+1)
+                        plt.plot(data.averages[:limit])
+                        plt.xlabel("Episode")
+                        plt.ylabel("Avg. Epsiodic Reward (of 25)")
+                        plt.subplot(len(plot_opts), 2, 2*dat+2)
+                        plt.plot(data.rewards[:limit])
+                        plt.xlabel("Episode")
+                        plt.ylabel("Epsiode Reward")
+                except:
+                    pass
+
         # try:
         #     with open('data_ddpg.pk1'.format(plot_opts[dat]), 'rb') as qt:
         #         data = pickle.load(qt)
@@ -78,6 +130,8 @@ def main():
         #     pass
         plt.show()
 
+
+# initialization function: plot the background of each frame
 
 if __name__ == "__main__":
     main()
