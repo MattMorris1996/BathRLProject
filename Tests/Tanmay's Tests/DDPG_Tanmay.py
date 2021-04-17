@@ -40,8 +40,8 @@ import tensorflow as tf
 
 live_plot = False
 
-seed = 2021  # random.randint(1, 100) #58 is nice
-num_episodes = 1500
+seed = 16 #random.randint(0,100) #58 is nice #2021 #78
+num_episodes = 201
 max_steps = 1000  # Maximum number of steps in an episode
 min_steps = max_steps
 exploring_starts = 1
@@ -50,7 +50,7 @@ average_of = 100
 step_decay = 1  # 0.995
 augment = 0  # 0.001
 
-render_list = [0, 10, 25, 50, 100, 120, 150, 200, 300, 500, 1000, 1500, 1997, 1998, 1999, 2000]#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
+render_list = [0, 10, 25, 50, 100, 120, 150, 200] #, 300, 500, 1000, 1500, 1997, 1998, 1999, 2000]#0, 10, 20, 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32, 33, 34, 35]
 save = True
 
 
@@ -104,7 +104,7 @@ class Agent:
         self.env = env
         random.seed(seed)
         np.random.seed(seed)
-        # tf.random.set_seed(seed)
+        tf.random.set_seed(seed)
         self.env.seed(seed)
         self.actor = self.createModel()
         self.target_actor = self.createModel()
@@ -270,7 +270,7 @@ def main(max_steps):
     rewards = np.zeros(num_episodes)
     rewards_av = deque(maxlen=int(average_of))
     averages = np.ones(num_episodes)
-    # print(seed)
+    print(seed)
     for episode in range(num_episodes):
         action = np.zeros(1)
         state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])#1, 2)
@@ -309,7 +309,7 @@ def main(max_steps):
 
         else:
             print("Completed in {:4} episodes, with reward of {:8.3f}, average reward of {:8.3f}".format(episode, total_reward, np.mean(rewards_av)))
-            break
+            #break
 
         if live_plot:
             plt.subplot(2, 1, 1)
@@ -328,7 +328,7 @@ def main(max_steps):
 
         env.close()
         if frames:
-            imageio.mimwrite(os.path.join('./videos/', 'agent_ep_{}.gif'.format(episode)), frames, fps=60)
+            imageio.mimwrite(os.path.join('./videos/', 'agent_ep_{}.gif'.format(episode)), frames, fps=30)
             del frames
 
     with open('data_ddpg.pk1', 'wb') as handle:

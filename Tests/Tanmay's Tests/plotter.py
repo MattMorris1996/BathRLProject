@@ -5,11 +5,11 @@ import matplotlib.animation as animation
 
 # plot = False
 plot = True
+# anim_plot = False
 anim_plot = True
-# anim_plot = True
 # plot_opts = [0, 10, 6]
 # plot_opts = [6, 13, 10, 17, 18]
-plot_opts = ['ddpg', 'ddpg_success1']
+plot_opts = ['ddpg']#, 'ddpg_success1']
 # plot_opts = list(range(0,15))
 tests = 19
 
@@ -71,28 +71,43 @@ def main():
                                 break
                             else:
                                 point_a = point
-                        fig = plt.figure()
-                        plt.xlabel("Episode")
-                        plt.ylabel("Episode Reward")
-                        ax = plt.axes(xlim=(0, limit), ylim=(-150, 100))
-                        line, = ax.plot([], [], lw=2)
-
+                        fig, (ax1, ax2) = plt.subplots(2,1)
+                        ax1.set_xlabel("Episode")
+                        ax1.set_ylabel("Episode Reward")
+                        ax2.set_xlabel("Episode")
+                        ax2.set_ylabel("Episode Reward")
+                        for ax in [ax1, ax2]:
+                            ax.set_ylim(-100, 100)
+                            ax.set_xlim(0, limit)
+                            # ax.grid()
+                        # ax1 = ax1.axes(xlim=(0, limit), ylim=(-100, 100))
+                        # ax2 = ax2.axes(xlim=(0, limit), ylim=(-100, 100))
+                        line1, = ax1.plot([], [], lw=2)
+                        line2, = ax2.plot([], [], lw=2)
+                        line = [line1, line2]
+                        # ax = [ax1, ax2]
                         def init_graph():
-                            line.set_data([], [])
-                            return line,
+                            line[0].set_data([], [])
+                            line[1].set_data([], [])
+                            return line
 
                         # animation function.  This is called sequentially
                         def animate(i):
                             x = np.linspace(0, i, i)
-                            y = data.averages[:i]
-                            line.set_data(x, y)
-                            return line,
+                            y1 = data.averages[:i]
+                            line[0].set_data(x, y1)
+                            y2 = data.rewards[:i]
+                            line[1].set_data(x, y2)
+                            return line
 
+                        plt.tight_layout()
                         anim = animation.FuncAnimation(fig, animate, init_func=init_graph,
                                                        frames=limit, interval=20, blit=True)
                         anim.save('./videos/learning_curve_{}.mp4'.format(plot_opts[dat]), fps=30,
                                   extra_args=['-vcodec', 'libx264'])
+
                         plt.show()
+
                 except:
                     pass
 
