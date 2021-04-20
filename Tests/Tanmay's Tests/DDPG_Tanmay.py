@@ -25,7 +25,7 @@ import tensorflow as tf
 live_plot = False
 
 seed = 16  # random.randint(0,100) #58 is nice #2021 #78
-num_episodes = 201
+num_episodes = 1000
 max_steps = 1000  # Maximum number of steps in an episode
 min_steps = max_steps
 exploring_starts = 1
