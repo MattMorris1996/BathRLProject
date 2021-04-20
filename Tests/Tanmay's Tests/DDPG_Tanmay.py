@@ -25,7 +25,7 @@ import tensorflow as tf
 live_plot = False
 
 seed = 16  # random.randint(0,100) #58 is nice #2021 #78
-num_episodes = 1000
+num_episodes = 2500
 max_steps = 1000  # Maximum number of steps in an episode
 min_steps = max_steps
 exploring_starts = 1
@@ -34,11 +34,11 @@ average_of = 100
 step_decay = 1  # 0.995
 augment = 0  # 0.001
 
-render_list = []  # 0, 10, 25, 50, 100, 120, 150, 200] #, 300, 500, 1000, 1500, 1997, 1998, 1999, 2000]#0, 10, 20,
+render_list = [0, 150, 300, 800, 1000, 1500, 1800, 2000, 2500]  # 0, 10, 25, 50, 100, 120, 150, 200] #, 300, 500, 1000, 1500, 1997, 1998, 1999, 2000]#0, 10, 20,
 # 30, 40, 50, 100, 110, 120, 130, 140, 150 ]  # 50, 51, 52, 53, 100, 101, 102, 103, 104, 105] #0, 10, 20, 30, 31, 32,
 # 33, 34, 35]
-# save = True
-save = False
+save = True
+# save = False
 
 
 class Noise:
@@ -148,7 +148,7 @@ class Agent:
             inputs = keras.layers.Input(shape=(input,))
             hidden = keras.layers.Dense(256, activation="relu")(inputs)
             hidden = keras.layers.Dense(256, activation="relu")(hidden)
-            outputs = keras.layers.Dense(1, activation="tanh", kernel_initializer=last_init)(hidden)
+            outputs = keras.layers.Dense(self.env.action_space.shape[0], activation="tanh", kernel_initializer=last_init)(hidden)
             model = Actor(inputs, outputs)
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 2,
@@ -264,7 +264,7 @@ class Agent:
         if np.random.random() < self.epsilon:  # If using epsilon instead of exploration noise
             return random.uniform(-1, 1)
         if scale:
-            return np.clip(0.33 * (self.actor(state)) + self.noise.sample(), -1, 1)
+            return np.clip(0.33 * (self.env.action_space.sample()) + self.noise.sample(), -1, 1)
         return np.clip(1 * tf.squeeze(self.actor(state)).numpy() + self.noise.sample(), -1,
                        1)  # np.argmax(self.model.predict(state))  # action
 
@@ -292,14 +292,17 @@ def _label_with_episode_number(frame, episode_num):
 def main(max_steps):
     env = gym.make('MountainCarContinuous-v0').env
     # env = gym.make('Pendulum-v0').env
+    # env = gym.make('CarRacing-v0').env
     agent = Agent(env, seed)
     rewards = np.zeros(num_episodes)
     rewards_av = deque(maxlen=int(average_of))
     averages = np.ones(num_episodes)
     print(seed)
     for episode in range(num_episodes):
-        action = np.zeros(1)
-        state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])  # 1, 2)
+        action = np.zeros(env.action_space.shape[0])
+        state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])  # 1, 2) #env.action_space.shape[0]
+        # state = env.reset().reshape(env.action_space.shape[0],env.observation_space.shape[0]**2)  # 1, 2) #env.action_space.shape[0]
+
         total_reward = 0
         frames = []
         for step in range(max_steps):
@@ -310,13 +313,14 @@ def main(max_steps):
                 env.render()
                 pass
             if episode < exploring_starts:
-                action[0] = agent.chooseAction(state, True)
+                action = agent.chooseAction(state, True)
             else:
-                action[0] = agent.chooseAction(state)
+                action = agent.chooseAction(state)
             next_state, reward, terminal, info = env.step(action)
-            next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
+            next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0]) #env.action_space.shape[0]
+            # next_state = next_state.reshape(env.action_space.shape[0],env.observation_space.shape[0]**2)  # env.action_space.shape[0]
             total_reward += reward
-            reward += ((state[0][0] + 1.2) ** 2) * augment  # Augmentation of reward if testing
+            # reward += ((state[0][0] + 1.2) ** 2) * augment  # Augmentation of reward if testing
             agent.train(state, action, reward, next_state, terminal, step)  # Push data to Agent
             state = next_state
             if terminal:
@@ -329,9 +333,8 @@ def main(max_steps):
         averages[episode:] = np.mean(rewards_av)
 
         if np.mean(rewards_av) <= 90:  # step >= 199:
-            print(
-                "Failed to complete in episode {:4} with reward of {:8.3f} in {:5} steps, average reward of last {:4} "
-                "episodes is {:8.3f}".format(episode, total_reward, step + 1, average_of, np.mean(rewards_av)))
+            print("Failed to complete in episode {:4} with reward of {:8.3f} in {:5} steps, average reward of last "
+                  "{:4} episodes is {:8.3f}".format(episode, total_reward, step + 1, average_of, np.mean(rewards_av)))
 
         else:
             print("Completed in {:4} episodes, with reward of {:8.3f}, average reward of {:8.3f}".format(episode,
