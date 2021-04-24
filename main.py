@@ -21,6 +21,7 @@ from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 
 import tensorflow as tf
 
+from plotter import plot as plotter
 
 class Noise:
     """Ornstein-Uhlenbeck process."""
@@ -274,13 +275,15 @@ class Agent:
     exploring_starts = 1
     average_of = 100
 
-    def __init__(self, num_episodes, seed, save, render_list, max_steps=1000, live_plot = False):
+    def __init__(self, agent_num, num_episodes, seed, save, render_list, max_steps=1000, live_plot = False, verbose = True):
         self.num_episodes = num_episodes
         self.seed = seed
         self.render_list = render_list
         self.save = save
         self.max_steps = max_steps
         self.live_plot = live_plot
+        self.verbose = verbose
+        self.agent_num = agent_num
     def train(self):
         env = gym.make('MountainCarContinuous-v0').env
         # env = gym.make('Pendulum-v0').env
@@ -321,11 +324,11 @@ class Agent:
             rewards_av.append(total_reward)
             averages[episode:] = np.mean(rewards_av)
 
-            if np.mean(rewards_av) <= 90:  # step >= 199:
+            if np.mean(rewards_av) <= 90 and self.verbose:  # step >= 199:
                 print("Failed to complete in episode {:4} with reward of {:8.3f} in {:5} steps, average reward of last "
                       "{:4} episodes is {:8.3f}".format(episode, total_reward, step + 1, self.average_of, np.mean(rewards_av)))
 
-            else:
+            elif self.verbose:
                 print("Completed in {:4} episodes, with reward of {:8.3f}, average reward of {:8.3f}".format(episode,
                                                                                                              total_reward,
                                                                                                              np.mean(rewards_av)))
@@ -344,15 +347,15 @@ class Agent:
 
             if episode % 25 == 0:
                 data = DataStore(averages, rewards)
-                with open('data_ddpg.pk1', 'wb') as handle:
+                with open('data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
                     pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
             env.close()
             if frames:
-                imageio.mimwrite(os.path.join('./videos/', 'agent_ep_{}.gif'.format(episode)), frames, fps=30)
+                imageio.mimwrite(os.path.join('./videos/', 'agent{}_ep_{}.gif'.format(self.agent_num,episode)), frames, fps=30)
                 del frames
 
-        with open('data_ddpg.pk1', 'wb') as handle:
+        with open('data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
             pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
         return rewards
 
@@ -361,5 +364,17 @@ if __name__ == "__main__":
     print("Random Seed: {}".format(seed))
     render_list = []#0, 150, 300, 800, 1000, 1500, 1800, 2000, 2500]
     save = True
-    agent = Agent(num_episodes=200, seed=seed, save=save, render_list=render_list)
-    agent.train()
+    num_agents = 10
+    # agent = Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=1)
+    agents = [Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=x) for x in range(num_agents)]
+    # agents.train()
+
+    for agent in agents:
+        agent.train()
+
+    # plotter = Plotter()
+
+    # plots = ['ddpg_agent{}'.format(x) for x in range(num_agents)]
+    # plot = True
+    # anim = False
+    # plotter(plot, anim, plots)
