@@ -109,18 +109,18 @@ class DDPG:
         np.random.seed(seed)
         tf.random.set_seed(seed)
         self.env.seed(seed)
-        self.actor = self.createModel()
-        self.target_actor = self.createModel()
+        self.actor = self.create_model()
+        self.target_actor = self.create_model()
         self.noise = Noise(self.env.action_space.shape[0], seed, theta=0.2,
                            sigma=0.5)  # noise is actually OpenAI baselines OU Noise wrapped in another OUNoise function
-        self.critic = self.createModel((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
-        self.target_critic = self.createModel((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
+        self.critic = self.create_model((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
+        self.target_critic = self.create_model((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
         self.target_critic.set_weights(self.critic.get_weights())  # ensure initial weights are equal for networks
         self.target_actor.set_weights(self.actor.get_weights())
         self.reset()
         # return self.actor
 
-    def createModel(self, input=None):
+    def create_model(self, input=None):
         """Generate neural network models based on inputs, defaults to Actor model"""
         last_init = tf.random_uniform_initializer(minval=-0.003,
                                                   maxval=0.003)  # To prevent actor network from causing steep gradients
@@ -156,7 +156,7 @@ class DDPG:
             model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=lr_schedule))  # mean_squared_error
         return model
 
-    def replayBuffer(self, state, action, reward, next_state, terminal):
+    def replay_buffer(self, state, action, reward, next_state, terminal):
         ##TODO Implement prioritised buffer
         self.memory.append([state, action, reward, next_state, terminal])
 
@@ -187,7 +187,7 @@ class DDPG:
         for (a, b) in zip(target_weights, weights):
             a.assign(b * tau + a * (1 - tau))
 
-    def trainTarget(self):
+    def train_target(self):
         """Standard function to update target networks by tau"""
         self.update_weight(self.target_actor.variables, self.actor.variables, self.tau)
         self.update_weight(self.target_critic.variables, self.critic.variables, self.tau)
@@ -224,19 +224,19 @@ class DDPG:
 
     def train(self, state, action, reward, next_state, terminal, steps):
         """Function call to update buffer and networks at predetermined intervals"""
-        self.replayBuffer(state, action, reward, next_state, terminal)  # Add new data to buffer
+        self.replay_buffer(state, action, reward, next_state, terminal)  # Add new data to buffer
         if steps % 1 == 0 and len(self.memory) > self.learn_start:  # Sample every X steps
             samples = self.sample2batch()
             states, actions, rewards, next_states = samples
             self.replay(states, actions, rewards, next_states)
         if steps % 1 == 0:  # Update targets only every X steps
-            self.trainTarget()
+            self.train_target()
 
     def reset(self):
         self.epsilon *= self.decay
         self.epsilon = max(self.epsilon_min, self.epsilon)
 
-    def chooseAction(self, state, scale=False):
+    def choose_action(self, state, scale=False):
         """Choose action based on policy and noise function. Scale option used to limit maximum actions"""
         # self.epsilon *= self.decay
         # self.epsilon = round(max(self.epsilon / 1000, self.epsilon), 5)
@@ -304,9 +304,9 @@ class Agent:
                     env.render()
                     pass
                 if episode < self.exploring_starts:
-                    action = agent.chooseAction(state, True)
+                    action = agent.choose_action(state, True)
                 else:
-                    action = agent.chooseAction(state)
+                    action = agent.choose_action(state)
                 next_state, reward, terminal, info = env.step(action)
                 next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
                 total_reward += reward
