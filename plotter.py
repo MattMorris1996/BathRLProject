@@ -3,13 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-# # plot = False
-# plot = True
-# # anim_plot = False
+# plot = False
+plot = True
+anim_plot = False
 # anim_plot = True
-# # plot_opts = [0, 10, 6]
-# # plot_opts = [6, 13, 10, 17, 18]
-# plot_opts = ['ddpg']#, 'ddpg_success1']
+# plot_opts = [0, 10, 6]
+# plot_opts = [6, 13, 10, 17, 18]
+# plot_opts = ['ddpg_agent0']#, 'ddpg_success1']
+num_agents = 10
+plot_opts = ['ddpg_agent{}'.format(x) for x in range(num_agents)]
 
 
 class DataStore:
@@ -18,7 +20,7 @@ class DataStore:
         self.rewards = rewards
 
 
-def plot(plot, anim_plot, plot_opts):
+def plot_f(plot, anim_plot, plot_opts):
     print("")
     print("All Data info:")
     print("")
@@ -42,7 +44,7 @@ def plot(plot, anim_plot, plot_opts):
         if anim_plot:
             for dat in range(0,len(plot_opts)):
                 try:
-                    with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
+                    with open('./data/data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
                         data = pickle.load(qt)
                         point_a = 1000
                         for limit, point in enumerate(data.averages):
@@ -93,8 +95,10 @@ def plot(plot, anim_plot, plot_opts):
         else:
             for dat in range(0,len(plot_opts)):
                 try:
-                    with open('data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
+                    with open('./data/data_{}.pk1'.format(plot_opts[dat]), 'rb') as qt:
                         data = pickle.load(qt)
+                        print("Max reward for DDPG agent {}: {:8.3f}, Max average reward for DDPG: {:8.3f}".format(dat,
+                            max(data.rewards), max(data.averages)))
                         point_a = 1000
                         for limit, point in enumerate(data.averages):
                             if point == point_a:
@@ -112,7 +116,8 @@ def plot(plot, anim_plot, plot_opts):
                 except:
                     pass
 
-
+        plt.tight_layout()
         plt.show()
 
-
+if __name__ == "__main__":
+    plot_f(plot, anim_plot, plot_opts)

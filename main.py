@@ -286,6 +286,7 @@ class Agent:
         self.agent_num = agent_num
     def train(self):
         env = gym.make('MountainCarContinuous-v0').env
+        # env = gym.make('LunarLanderContinuous-v2').env
         # env = gym.make('Pendulum-v0').env
         # env = gym.make('CarRacing-v0').env
         agent = DDPG(env, self.seed)
@@ -295,7 +296,7 @@ class Agent:
         # print(self.seed)
         for episode in range(self.num_episodes):
             action = np.zeros(env.action_space.shape[0])
-            state = env.reset().reshape(env.action_space.shape[0], env.observation_space.shape[0])
+            state = env.reset()#.reshape(env.action_space.shape[0], env.observation_space.shape[0])
 
             total_reward = 0
             frames = []
@@ -311,7 +312,7 @@ class Agent:
                 else:
                     action = agent.choose_action(state)
                 next_state, reward, terminal, info = env.step(action)
-                next_state = next_state.reshape(env.action_space.shape[0], env.observation_space.shape[0])
+                next_state = next_state#.reshape(env.action_space.shape[0], env.observation_space.shape[0])
                 total_reward += reward
                 agent.train(state, action, reward, next_state, terminal, step)  # Push data to Agent
                 state = next_state
@@ -347,7 +348,7 @@ class Agent:
 
             if episode % 25 == 0:
                 data = DataStore(averages, rewards)
-                with open('data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
+                with open('./data/data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
                     pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
             env.close()
@@ -355,18 +356,18 @@ class Agent:
                 imageio.mimwrite(os.path.join('./videos/', 'agent{}_ep_{}.gif'.format(self.agent_num,episode)), frames, fps=30)
                 del frames
 
-        with open('data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
+        with open('./data/data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
             pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
         return rewards
 
 if __name__ == "__main__":
-    seed = random.randint(0,100)  # 16
+    seed = 16 #random.randint(0,100)  # 16
     print("Random Seed: {}".format(seed))
-    render_list = []#0, 150, 300, 800, 1000, 1500, 1800, 2000, 2500]
+    render_list = [0, 50, 100, 150, 200, 250]
     save = True
-    num_agents = 10
+    num_agents = 20
     # agent = Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=1)
-    agents = [Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=x) for x in range(num_agents)]
+    agents = [Agent(num_episodes=250, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=x) for x in range(num_agents)]
     # agents.train()
 
     for agent in agents:
