@@ -36,10 +36,10 @@ class TileGrid:
 
         standard_width = (self.v1_min - self.v1_max) / self.n_columns
 
-        self.grid_width = (standard_width * (self.n_columns + 1))/self.n_columns
+        self.grid_width = (standard_width * (self.n_columns + 1)) / self.n_columns
 
         standard_height = (self.v2_min - self.v2_max) / self.n_rows
-        self.grid_height = (standard_height * (self.n_rows + 1))/self.n_rows
+        self.grid_height = (standard_height * (self.n_rows + 1)) / self.n_rows
 
         self.scale_increase_v1 = standard_width / 2
         self.scale_increase_v2 = standard_height / 2
@@ -63,11 +63,15 @@ class TileGrid:
         return index
 
 
+GAMMA = 0.95
+ALPHA = 0.5/8
+
+
 class QTable:
     def __init__(self):
         self.grid_size = self.grid_columns, self.grid_rows = 8, 8
 
-        self.n_grids = 2
+        self.n_grids = 8
         self.n_actions = 3
 
         self.tile_coder = TileCoding(self.n_grids, (-1.2, 0.6), (-0.07, 0.07))
@@ -81,16 +85,14 @@ class QTable:
 
     def get_optimal_policy(self, state):
         values = np.zeros((3, 1), dtype=np.float64)
-        for action in range(self.n_actions):
+        for action in range(3):
             values[action] = self._get_value(state, action)
 
-        actions = np.array([0, 1, 2])
-
-        p = 1 - 0.2 + 0.2 / len(actions)
-        prob = np.ones(3) * 0.2 / len(actions)
-        prob[np.argmax(values)] = p
-
-        return np.random.choice(actions, p=prob)
+        prob = np.random.uniform(0, 1)
+        if prob < 0.1:
+            return np.random.randint(3)
+        else:
+            return np.argmax(values)
 
     def _gradient(self, state, action):
         def linear_function(w, f):
@@ -103,23 +105,26 @@ class QTable:
 
         with tf.GradientTape() as tape:
             y = linear_function(weights, features)
+
         gradients = tape.gradient(y, weights)
 
         return gradients.numpy()
 
     def update(self, state, action, next_state, next_action, reward):
-        error = reward + (0.8 * self._get_value(next_state, next_action) - self._get_value(state, action))
-        gradient = self._gradient(state, action)
-        self.parameter_vector += error * 0.2 * gradient
+        error = reward + (GAMMA * self._get_value(next_state, next_action) - self._get_value(state, action))
+        v1, v2 = state
+        gradient = self.tile_coder.get_feature_vector(v1, v2, action)
+        self.parameter_vector += ALPHA * error * gradient
 
     def update_terminal(self, state, action, reward):
-        error = reward - 0.8 * self._get_value(state, action)
-        gradient = self._gradient(state, action)
-        self.parameter_vector += error * gradient
+        error = reward - self._get_value(state, action)
+        v1, v2 = state
+        gradient = self.tile_coder.get_feature_vector(v1, v2, action)
+        self.parameter_vector += ALPHA * error * gradient
 
 
 def learn():
-    N_EPISODES = 1
+    N_EPISODES = 1000
     N_AGENTS = 1
     env = gym.make('MountainCar-v0').env
     agent_returns = np.zeros((N_AGENTS, N_EPISODES))
@@ -135,10 +140,12 @@ def learn():
             observation = env.reset()
             action = q.get_optimal_policy(observation)
             total_return = 0
+            steps = 0
             while True:
+                steps += 1
                 next_observation, reward, done, info = env.step(action)
                 total_return += reward
-                #env.render()
+                # env.render()
                 if done:
                     q.update_terminal(observation, action, reward)
                     break
@@ -147,6 +154,7 @@ def learn():
                 action = next_action
                 observation = next_observation
             agent_returns[0][n_episode] = total_return
+            print("steps:", str(steps))
         env.close()
 
     import matplotlib.pyplot as plt
