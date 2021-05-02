@@ -34,10 +34,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # plotter = Plotter()
-
-    # plots = ['ddpg_agent{}'.format(x) for x in range(num_agents)]
-    # plot = True
-    # anim = False
-    # plotter(plot, anim, plots)
