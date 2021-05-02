@@ -17,13 +17,40 @@ import matplotlib.pyplot as plt
 
 from collections import deque
 
-from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
+#from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 
 import tensorflow as tf
 
 from plotter import plot as plotter
 
 from PrioReplay import PrioReplay
+
+class OUActionNoise:
+    def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
+        self.theta = theta
+        self.mean = mean
+        self.std_dev = std_deviation
+        self.dt = dt
+        self.x_initial = x_initial
+        self.reset()
+
+    def __call__(self):
+        # Formula taken from https://www.wikipedia.org/wiki/Ornstein-Uhlenbeck_process.
+        x = (
+            self.x_prev
+            + self.theta * (self.mean - self.x_prev) * self.dt
+            + self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
+        )
+        # Store x into x_prev
+        # Makes next noise dependent on current one
+        self.x_prev = x
+        return x
+
+    def reset(self):
+        if self.x_initial is not None:
+            self.x_prev = self.x_initial
+        else:
+            self.x_prev = np.zeros_like(self.mean)
 
 class Noise:
     """Ornstein-Uhlenbeck process."""
@@ -36,7 +63,7 @@ class Noise:
         self.sigma = sigma
         self.seed = seed
         random.seed(seed)
-        self.baseline_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(size), sigma=sigma * np.ones(size))
+        self.baseline_noise = OUActionNoise(mean=np.zeros(size), std_deviation=sigma * np.ones(size))
         self.reset()
 
     def reset(self):
@@ -102,9 +129,9 @@ class DDPG:
     alpha = 0.002
     tau = 0.005
 
-    batch_size = 64
+    batch_size = 32
 
-    mem_len = 1e5
+    mem_len = 100000
     memory = PrioReplay(mem_len,batch_size)
 
     def __init__(self, env, seed):

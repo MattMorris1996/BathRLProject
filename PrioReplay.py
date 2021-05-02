@@ -5,7 +5,7 @@ import random
 
 class PrioReplay():
 
-    def __init__(self,bufferlen,batch_size):
+    def __init__(self,bufferlen ,batch_size):
 
         self.a = 0.7
         self.b = 0.5
