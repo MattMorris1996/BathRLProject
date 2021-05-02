@@ -1,5 +1,5 @@
 
-from PrioReplay import PrioReplay
+from PrioReplay_ import PrioReplay
 
 replay_len = 3
 
