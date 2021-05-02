@@ -23,6 +23,8 @@ import tensorflow as tf
 
 from plotter import plot as plotter
 
+from prio_replay import PrioReplay
+
 class OUActionNoise:
     def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
         self.theta = theta
@@ -114,36 +116,6 @@ class Critic(keras.Model):
     #     critic_grad = tape.gradient(loss, self.trainable_variables)
     #     self.optimizer.apply_gradients(zip(critic_grad, self.trainable_variables))
 
-class PrioReplay():
-
-    def __init__(self,bufferlen):
-
-        self.a = 0.7
-        self.b = 0.5
-
-        self.buffer = deque(maxlen=bufferlen)
-        self.priorities = deque(maxlen=bufferlen)
-
-    def add(self, exp):
-
-        self.buffer.append(exp)
-        self.priorities.append(max(self.priorities, default=1))
-
-    def sample(self,batch_size):
-
-        scaled_priorities = np.array(self.priorities) ** self.a
-        sample_probabilities = scaled_priorities / sum(scaled_priorities)
-
-        importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
-        importance_weights = 1 / max(importance)
-
-        samples = random.choices(self.buffer, weights=self.priorities, k=batch_size)
-
-        return samples, importance_weights
-
-    def set_prio(self,error):
-
-        self.priorities = abs(error)
 
 class DDPG:
     """The most perfect DDPG Agent you have ever seen"""
@@ -157,8 +129,10 @@ class DDPG:
     alpha = 0.002
     tau = 0.005
 
+    batch_size = 32
+
     mem_len = 100000
-    pr_replay = PrioReplay(mem_len)
+    rp_buffer = PrioReplay(mem_len, batch_size)
 
     def __init__(self, env, seed):
 
@@ -215,7 +189,7 @@ class DDPG:
         return model
 
     @tf.function  # EagerExecution for speeeed
-    def replay(self, states, actions, rewards, next_states, importance_weights):  # , actor, target_actor, critic, target_critic):
+    def replay(self, states, actions, rewards, next_states,importance_weights):  # , actor, target_actor, critic, target_critic):
         """tf function that replays sampled experience to update actor and critic networks using gradient"""
         # Very much inspired by Keras tutorial: https://keras.io/examples/rl/ddpg_pendulum/
         with tf.GradientTape() as tape:
@@ -223,13 +197,11 @@ class DDPG:
             q_target = rewards + self.gamma * self.target_critic([next_states, target_actions], training=True)
             q_current = self.critic([states, actions], training=True)
 
-        error = q_target - q_current
-        self.pr_replay.set_prio(error)
+            error = q_target - q_current
+            self.rp_buffer.set_prio(error)
 
-        print(len(importance_weights))
-
-        critic_loss = 1 / len(importance_weights) * sum(importance_weights * (error**2) )
-            #critic_loss = tf.math.reduce_mean(tf.math.square(q_target - q_current))
+            critic_loss = tf.math.reduce_mean(tf.math.square(q_target - q_current))
+            #critic_loss = tf.math.reduce_mean(1 / self.batch_size * sum(importance_weights *tf.math.square(error)))
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic.optimizer.apply_gradients(zip(critic_grad, self.critic.trainable_variables))
@@ -253,22 +225,22 @@ class DDPG:
         self.update_weight(self.target_actor.variables, self.actor.variables, self.tau)
         self.update_weight(self.target_critic.variables, self.critic.variables, self.tau)
 
-    def sample2batch(self, batch_size=64):
+    def sample2batch(self):
         """Return a set of Tensor samples from the memory buffer of batch_size, default is 64"""
         # batch_size = 64
 
-        if len(self.pr_replay.buffer) < batch_size:  # return nothing if not enough experiences available
+        if len(self.rp_buffer.buffer) < self.batch_size:  # return nothing if not enough experiences available
             return
         # Generate batch and emtpy arrays
-        samples, importance_weights = self.pr_replay.sample(batch_size)
-        next_states = np.zeros((batch_size, self.env.observation_space.shape[0]))
-        states = np.zeros((batch_size, self.env.observation_space.shape[0]))
-        rewards = np.zeros((batch_size, 1))
-        actions = np.zeros((batch_size, self.env.action_space.shape[0]))
+        samples, importance_weights = self.rp_buffer.sample()
+        next_states = np.zeros((self.batch_size, self.env.observation_space.shape[0]))
+        states = np.zeros((self.batch_size, self.env.observation_space.shape[0]))
+        rewards = np.zeros((self.batch_size, 1))
+        actions = np.zeros((self.batch_size, self.env.action_space.shape[0]))
 
         # Separate batch into arrays
         for idx, sample in enumerate(samples):
-            state, action, reward, next_state, terminal = sample
+            [state, action, reward, next_state, terminal] = sample
             states[idx] = state
             actions[idx] = action
             rewards[idx] = reward
@@ -281,13 +253,13 @@ class DDPG:
         actions = tf.convert_to_tensor(actions)
         next_states = tf.convert_to_tensor(next_states)
 
-        return states, actions, rewards, next_states, importance_weights
+        return (states, actions, rewards, next_states, importance_weights)
 
     def train(self, state, action, reward, next_state, terminal, steps):
         """Function call to update buffer and networks at predetermined intervals"""
-        self.pr_replay.add([state, action, reward, next_state, terminal])  # Add new data to buffer
-        if steps % 1 == 0 and len(self.pr_replay.buffer) > self.learn_start:  # Sample every X steps
-            states, actions, rewards, next_states, importance_weights  = self.sample2batch()
+        self.rp_buffer.add([state, action, reward, next_state, terminal]) # Add new data to buffer
+        if steps % 1 == 0 and len(self.rp_buffer.buffer) > self.learn_start:  # Sample every X steps
+            states, actions, rewards, next_states, importance_weights = self.sample2batch()
             self.replay(states, actions, rewards, next_states, importance_weights)
         if steps % 1 == 0:  # Update targets only every X steps
             self.train_target()
@@ -411,9 +383,9 @@ class Agent:
             #        pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
 
             env.close()
-            #if frames:
-            #    imageio.mimwrite(os.path.join('./videos/', 'agent{}_ep_{}.gif'.format(self.agent_num,episode)), frames, fps=30)
-            #    del frames
+            if frames:
+                imageio.mimwrite(os.path.join('./videos/', 'agent{}_ep_{}.gif'.format(self.agent_num,episode)), frames, fps=30)
+                del frames
 
         #with open('./data/data_ddpg_agent{}.pk1'.format(self.agent_num), 'wb') as handle:
         #    pickle.dump(data, handle, pickle.HIGHEST_PROTOCOL)
@@ -424,7 +396,7 @@ if __name__ == "__main__":
     print("Random Seed: {}".format(seed))
     render_list = [250]
     save = True
-    num_agents = 20
+    num_agents = 5
     # agent = Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=1)
     agents = [Agent(num_episodes=250, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=x) for x in range(num_agents)]
     # agents.train()
