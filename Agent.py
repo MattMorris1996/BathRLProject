@@ -7,7 +7,6 @@ import math
 from DDPG import DDPG
 from AgentLogger import AgentLogger
 
-import pandas as pd
 
 class Agent:
     exploring_starts = 1
@@ -31,7 +30,7 @@ class Agent:
         averages = np.ones(self.num_episodes)
 
         for episode in range(self.num_episodes):
-            state = env.reset()  # .reshape(env.action_space.shape[0], env.observation_space.shape[0])
+            state = env.reset()
 
             total_reward = 0
             step = 0
@@ -43,11 +42,9 @@ class Agent:
                 action = agent.choose_action(state, scale=episode < self.exploring_starts)
 
                 next_state, reward, terminal, info = env.step(action)
-                next_state = next_state  # .reshape(env.action_space.shape[0], env.observation_space.shape[0])
+                next_state = next_state  # ?
                 agent.train(state, action, reward, next_state, terminal, step)
 
-                if math.isnan(reward):
-                    pass
                 total_reward += reward
                 state = next_state
 
