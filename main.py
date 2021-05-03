@@ -16,7 +16,7 @@ def main():
         _saving_interval=25,  # Save to pickle log at interval
         _render_recording=True,  # Save agent rendering to gif
         _render_list=render_episodes,  # list of rendered episodes
-        _console_log=False,  # log metrics to console
+        _console_log=True,  # log metrics to console
     )
 
     agents = [

@@ -41,11 +41,10 @@ class Critic(keras.Model):
 
 class DDPG:
     """The most perfect DDPG Agent you have ever seen"""
-
     # Parameters taken from various sources
     epsilon = 0
     epsilon_min = 0
-    decay_rate = 0.9
+    decay = 0.9
 
     learn_start = 1000
     gamma = 0.99
@@ -64,9 +63,8 @@ class DDPG:
         self.env.seed(seed)
         self.actor = self.create_model()
         self.target_actor = self.create_model()
-        self.noise = Noise(self.env.action_space.shape[0], seed, theta=0.2, sigma=0.5)  # noise is actually OpenAI
-        # baselines OU Noise wrapped in another OUNoise function
-
+        self.noise = Noise(self.env.action_space.shape[0], seed, theta=0.2,
+                           sigma=0.5)  # noise is actually OpenAI baselines OU Noise wrapped in another OUNoise function
         self.critic = self.create_model((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
         self.target_critic = self.create_model((self.env.observation_space.shape[0], self.env.action_space.shape[0]))
         self.target_critic.set_weights(self.critic.get_weights())  # ensure initial weights are equal for networks
@@ -83,8 +81,7 @@ class DDPG:
             inputs = keras.layers.Input(shape=(input,))
             hidden = keras.layers.Dense(256, activation="relu")(inputs)
             hidden = keras.layers.Dense(256, activation="relu")(hidden)
-            outputs = keras.layers.Dense(self.env.action_space.shape[0], activation="tanh",
-                                         kernel_initializer=last_init)(hidden)
+            outputs = keras.layers.Dense(self.env.action_space.shape[0], activation="tanh", kernel_initializer=last_init)(hidden)
             model = Actor(inputs, outputs)
             lr_schedule = keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.alpha / 2,
@@ -112,8 +109,7 @@ class DDPG:
         return model
 
     @tf.function  # EagerExecution for speeeed
-    def replay(self, states, actions, rewards, next_states,
-               importance_weights):  # , actor, target_actor, critic, target_critic):
+    def replay(self, states, actions, rewards, next_states, importance_weights):  # , actor, target_actor, critic, target_critic):
         """tf function that replays sampled experience to update actor and critic networks using gradient"""
         # Very much inspired by Keras tutorial: https://keras.io/examples/rl/ddpg_pendulum/
 
@@ -123,10 +119,7 @@ class DDPG:
             q_current = self.critic([states, actions], training=True)
 
             error_sq = tf.math.square(q_target - q_current)
-
-            critic_loss = 1 / 64 * tf.math.reduce_sum(importance_weights * error_sq)
-
-            # critic_loss = tf.math.reduce_mean(tf.math.square(q_target - q_current))
+            critic_loss = tf.math.reduce_mean(importance_weights * error_sq)
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic.optimizer.apply_gradients(zip(critic_grad, self.critic.trainable_variables))
@@ -190,7 +183,7 @@ class DDPG:
             self.train_target()
 
     def reset(self):
-        self.epsilon *= self.decay_rate
+        self.epsilon *= self.decay
         self.epsilon = max(self.epsilon_min, self.epsilon)
 
     def choose_action(self, state, scale=False):
@@ -205,3 +198,4 @@ class DDPG:
             return np.clip(0.33 * (self.env.action_space.sample()) + self.noise.sample(), -1, 1)
         return np.clip(1 * tf.squeeze(self.actor(state)).numpy() + self.noise.sample(), -1,
                        1)  # np.argmax(self.model.predict(state))  # action
+
