@@ -21,8 +21,6 @@ from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 
 import tensorflow as tf
 
-from plotter import plot as plotter
-
 class Noise:
     """Ornstein-Uhlenbeck process."""
 
