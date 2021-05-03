@@ -249,9 +249,7 @@ class DDPG:
 
             error_sq = tf.math.square(q_target - q_current)
 
-            critic_loss = 1 / 64 * tf.math.reduce_sum(importance_weights * error_sq)
-
-            #critic_loss = tf.math.reduce_mean(tf.math.square(q_target - q_current))
+            critic_loss = tf.math.reduce_mean(importance_weights * error_sq)
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic.optimizer.apply_gradients(zip(critic_grad, self.critic.trainable_variables))
