@@ -363,11 +363,11 @@ class Agent:
 if __name__ == "__main__":
     seed = 16 #random.randint(0,100)  # 16
     print("Random Seed: {}".format(seed))
-    render_list = [0, 50, 100, 150, 200, 250]
+    render_list = []#0, 50, 100, 150, 200, 250]
     save = True
     num_agents = 20
     # agent = Agent(num_episodes=200, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=1)
-    agents = [Agent(num_episodes=250, seed=seed, save=save, render_list=render_list, verbose=False, agent_num=x) for x in range(num_agents)]
+    agents = [Agent(num_episodes=250, seed=seed, save=save, render_list=render_list, verbose=True, agent_num=x) for x in range(num_agents)]
     # agents.train()
 
     for agent in agents:
