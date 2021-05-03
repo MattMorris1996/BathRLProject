@@ -129,8 +129,8 @@ class PrioReplay():
         self.priorities.append(max(self.priorities, default=1))
 
     def get_importance(self, sample_probabilities):
-        importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
-        importance_weights = 1 / max(importance)
+        importance = 1/((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
+        importance_weights = importance * 1 / max(importance)
 
         return importance_weights
 
