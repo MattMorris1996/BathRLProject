@@ -36,9 +36,9 @@ class PrioReplay():
             importance = 1 / ( (len(self.buffer) ** self.b) * (sample_probabilities ** self.b) )
             importance_weight = 1 / max(importance)
 
-            [state, action, reward, next_state, terminal] = self.buffer[j]
+            print(importance_weight)
 
-            print([state, action, reward, next_state, terminal])
+            [state, action, reward, next_state, terminal] = self.buffer[j]
 
             target_action = target_actor(next_state, training=True)
             q_target = reward + self.gamma * target_critic([next_state, target_action], training=True)

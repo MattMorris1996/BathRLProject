@@ -114,10 +114,10 @@ class Critic(keras.Model):
     #     critic_grad = tape.gradient(loss, self.trainable_variables)
     #     self.optimizer.apply_gradients(zip(critic_grad, self.trainable_variables))
 
+
 class PrioReplay():
 
-    def __init__(self,bufferlen):
-
+    def __init__(self, bufferlen):
         self.a = 0.7
         self.b = 0.5
 
@@ -125,25 +125,28 @@ class PrioReplay():
         self.priorities = deque(maxlen=bufferlen)
 
     def add(self, exp):
-
         self.buffer.append(exp)
         self.priorities.append(max(self.priorities, default=1))
 
-    def sample(self,batch_size):
-
-        scaled_priorities = np.array(self.priorities) ** self.a
-        sample_probabilities = scaled_priorities / sum(scaled_priorities)
-
+    def get_importance(self, sample_probabilities):
         importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
         importance_weights = 1 / max(importance)
 
-        samples = random.choices(self.buffer, weights=self.priorities, k=batch_size)
+        return importance_weights
 
-        return samples, importance_weights
+    def sample(self, batch_size):
+        scaled_priorities = np.array(self.priorities) ** self.a
+        sample_probabilities = scaled_priorities / sum(scaled_priorities)
 
-    def set_prio(self,error):
+        indices = random.choices(range(len(self.buffer)), weights=sample_probabilities, k=batch_size)
+        samples = np.array(self.buffer)[indices]
+        samples_importance = self.get_importance(sample_probabilities[indices])
 
-        self.priorities = abs(error)
+        return samples, samples_importance, indices
+
+    def set_prio(self, errors, indices):
+        for i, e in zip(indices, errors):
+            self.priorities[indices] = abs(errors)
 
 class DDPG:
     """The most perfect DDPG Agent you have ever seen"""
@@ -215,7 +218,7 @@ class DDPG:
         return model
 
     @tf.function  # EagerExecution for speeeed
-    def replay(self, states, actions, rewards, next_states, importance_weights):  # , actor, target_actor, critic, target_critic):
+    def replay(self, states, actions, rewards, next_states, importance_weights, indices):  # , actor, target_actor, critic, target_critic):
         """tf function that replays sampled experience to update actor and critic networks using gradient"""
         # Very much inspired by Keras tutorial: https://keras.io/examples/rl/ddpg_pendulum/
         with tf.GradientTape() as tape:
@@ -223,12 +226,10 @@ class DDPG:
             q_target = rewards + self.gamma * self.target_critic([next_states, target_actions], training=True)
             q_current = self.critic([states, actions], training=True)
 
-        error = q_target - q_current
-        self.pr_replay.set_prio(error)
-
-        print(len(importance_weights))
-
-        critic_loss = 1 / len(importance_weights) * sum(importance_weights * (error**2) )
+        errors = q_target - q_current
+        self.pr_replay.set_prio(errors, indices)
+        print('passed')
+        critic_loss = 1 / len(indices) * sum(importance_weights * (errors**2) )
             #critic_loss = tf.math.reduce_mean(tf.math.square(q_target - q_current))
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
@@ -260,7 +261,7 @@ class DDPG:
         if len(self.pr_replay.buffer) < batch_size:  # return nothing if not enough experiences available
             return
         # Generate batch and emtpy arrays
-        samples, importance_weights = self.pr_replay.sample(batch_size)
+        samples, importance_weights, indices = self.pr_replay.sample(batch_size)
         next_states = np.zeros((batch_size, self.env.observation_space.shape[0]))
         states = np.zeros((batch_size, self.env.observation_space.shape[0]))
         rewards = np.zeros((batch_size, 1))
@@ -281,14 +282,14 @@ class DDPG:
         actions = tf.convert_to_tensor(actions)
         next_states = tf.convert_to_tensor(next_states)
 
-        return states, actions, rewards, next_states, importance_weights
+        return states, actions, rewards, next_states, importance_weights, indices
 
     def train(self, state, action, reward, next_state, terminal, steps):
         """Function call to update buffer and networks at predetermined intervals"""
         self.pr_replay.add([state, action, reward, next_state, terminal])  # Add new data to buffer
         if steps % 1 == 0 and len(self.pr_replay.buffer) > self.learn_start:  # Sample every X steps
-            states, actions, rewards, next_states, importance_weights  = self.sample2batch()
-            self.replay(states, actions, rewards, next_states, importance_weights)
+            states, actions, rewards, next_states, importance_weights, indices  = self.sample2batch()
+            self.replay(states, actions, rewards, next_states, importance_weights, indices)
         if steps % 1 == 0:  # Update targets only every X steps
             self.train_target()
 
