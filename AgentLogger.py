@@ -14,9 +14,9 @@ class AgentLogger:
             self,
             _saving_interval: int = 25,
             _console_log: bool = False,
-            _pickle_log: bool = False,
+            _pickle_log: bool = True,
             _live_plot: bool = False,
-            _render_recording: bool = False,
+            _render_recording: bool = True,
             _render_list=None
     ):
         """Class which separates logging logic from an agent class, an object with this class type is passed as an
