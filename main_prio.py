@@ -130,7 +130,7 @@ class PrioReplay():
 
     def get_importance(self, sample_probabilities):
         importance = 1/((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
-        importance_weights = importance * 1 / max(importance)
+        importance_weights = importance / max(importance)
 
         return importance_weights
 
@@ -168,7 +168,7 @@ class PrioReplay():
 
     def grow_b(self):
 
-        if self.b < 1
+        if self.b < 1:
             self.b = self.b + 0.5/100
 
 class DDPG:
