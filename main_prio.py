@@ -166,7 +166,10 @@ class PrioReplay():
 
         self.priorities[indice] = abs(error)
 
+    def grow_b(self):
 
+        if self.b < 1
+            self.b = self.b + 0.5/100
 
 class DDPG:
     """The most perfect DDPG Agent you have ever seen"""
@@ -248,7 +251,6 @@ class DDPG:
             q_current = self.critic([states, actions], training=True)
 
             error_sq = tf.math.square(q_target - q_current)
-
             critic_loss = tf.math.reduce_mean(importance_weights * error_sq)
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
@@ -399,6 +401,8 @@ class Agent:
                     break
 
             agent.noise.reset()
+
+            agent.pr_replay.grow_b()
 
             rewards[episode:] = total_reward
             rewards_av.append(total_reward)
