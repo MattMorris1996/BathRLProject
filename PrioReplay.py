@@ -54,3 +54,8 @@ class PrioReplay():
     def set_prio(self, error, indice):
 
         self.priorities[indice] = abs(error)
+
+    def grow_b(self):
+
+        if self.b < 1:
+            self.b = self.b + 0.5/100
