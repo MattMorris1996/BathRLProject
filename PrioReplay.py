@@ -18,7 +18,7 @@ class PrioReplay():
 
     def get_importance(self, sample_probabilities):
         importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
-        importance_weights = 1 / max(importance)
+        importance_weights = importance / max(importance)
 
         return importance_weights
 
@@ -27,7 +27,7 @@ class PrioReplay():
         sample_probabilities = scaled_priorities / sum(scaled_priorities)
 
         indices = random.choices(range(len(self.buffer)), weights=sample_probabilities, k=batch_size)
-        samples = np.array(list(self.buffer))[indices]
+        samples = np.array(list(self.buffer), dtype=object)[indices]
         samples_importance = self.get_importance(sample_probabilities[indices])
 
         for i in indices:
