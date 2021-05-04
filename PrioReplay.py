@@ -48,8 +48,9 @@ class PrioReplay():
 
         importance_tf = tf.convert_to_tensor(samples_importance)
         importance_tf32 = tf.cast(importance_tf, dtype=tf.float32)
+        importance_tf32_t = tf.reshape(importance_tf32, [64, 1])
 
-        return samples, importance_tf32
+        return samples, importance_tf32_t
 
     def set_prio(self, error, indice):
 
