@@ -109,6 +109,7 @@ class Agent:
         self.reset()
         # return self.actor
 
+    # update
     def createModel(self, input=None):
         """Generate neural network models based on inputs, defaults to Actor model"""
         last_init = tf.random_uniform_initializer(minval=-0.003,
