@@ -1,13 +1,14 @@
 gym~=0.18.0
-numpy~=1.20.2
+numpy~=1.19.5
 Box2D~=2.3.10
 pyglet~=1.5.0
 matplotlib~=3.3.4
 keras~=2.4.3
-tensorflow~=2.3.0
+tensorflow~=2.4.1
 opencv-python~=4.5.1.48
 torch~=1.8.1
 tensorflow-gpu~=2.4.1
 ipython~=7.22.0
 imageio~=2.9.0
-pillow~=7.2.0
+pillow~=8.1.2
+pandas~=1.2.3
