@@ -5,6 +5,7 @@ import gym
 import math
 
 from DDPG import DDPG
+from TD3 import TD3
 from AgentLogger import AgentLogger
 
 
@@ -23,7 +24,7 @@ class Agent:
 
     def train(self):
         env = gym.make(self.environment).env
-        agent = DDPG(env, self.seed)
+        agent = TD3(env, self.seed)
 
         rewards = np.zeros(self.num_episodes)
         reward_pool = deque(maxlen=self.reward_average_pool_size)
