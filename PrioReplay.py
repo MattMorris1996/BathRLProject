@@ -6,7 +6,6 @@ import numpy as np
 class PrioReplay():
 
     def __init__(self, bufferlen):
-        print(bufferlen)
         self.a = 0.7
         self.b = 0.5
 
