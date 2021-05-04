@@ -55,7 +55,7 @@ class Agent:
             agent.noise.reset()
 
             agent.pr_replay.grow_b()
-            
+
             rewards[episode] = total_reward
             reward_pool.append(total_reward)
             moving_average_reward = np.mean(reward_pool)
