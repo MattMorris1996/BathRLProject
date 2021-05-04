@@ -15,7 +15,7 @@ class Noise:
         self.sigma = sigma
         self.seed = seed
         random.seed(seed)
-        self.baseline_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(size), sigma=sigma * np.ones(size))
+        self.baseline_noise = OUActionNoise(mean=np.zeros(size), std_deviation=sigma * np.ones(size))
         self.reset()
 
     def reset(self):
