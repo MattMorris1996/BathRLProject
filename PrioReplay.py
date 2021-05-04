@@ -62,4 +62,4 @@ class PrioReplay():
     def grow_b(self):
 
         if self.b < 1:
-            self.b = self.b + 0.5/100
+            self.b = self.b + 0.5/30
