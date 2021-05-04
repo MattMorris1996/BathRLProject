@@ -3,7 +3,7 @@ from AgentLogger import AgentLogger
 
 
 def main():
-    n_episodes = 250
+    n_episodes = 130
     n_agents = 20
 
     seed = 16

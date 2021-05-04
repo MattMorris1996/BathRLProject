@@ -12,8 +12,8 @@ class Actor(keras.Model):
     """Attempted model"""
     pass
     # @tf.function
-    # def train_step(self, data):
-    #     state, critic_value = data
+    # def train_step(self, data_initial_test):
+    #     state, critic_value = data_initial_test
     #     with tf.GradientTape() as tape:
     #     # actions = self.model(states, training=True)
     #     # critic_value = self.state_action_model(states_actions, training=True)
@@ -27,8 +27,8 @@ class Actor(keras.Model):
 class Critic(keras.Model):
     pass
     # @tf.function
-    # def train_step(self, data):
-    #     y_s, y_pred = data
+    # def train_step(self, data_initial_test):
+    #     y_s, y_pred = data_initial_test
     #     with tf.GradientTape() as tape:
     #         y = self(y_s, training=True)  # Forward pass
     #         # Compute the loss value
@@ -175,7 +175,7 @@ class DDPG:
 
     def train(self, state, action, reward, next_state, terminal, steps):
         """Function call to update buffer and networks at predetermined intervals"""
-        self.pr_replay.add([state, action, reward, next_state, terminal])  # Add new data to buffer
+        self.pr_replay.add([state, action, reward, next_state, terminal])  # Add new data_initial_test to buffer
         if steps % 1 == 0 and len(self.pr_replay.buffer) > self.learn_start:  # Sample every X steps
             states, actions, rewards, next_states, importance_weights  = self.sample2batch()
             self.replay(states, actions, rewards, next_states, importance_weights)
