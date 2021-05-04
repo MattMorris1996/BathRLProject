@@ -24,10 +24,12 @@ class PrioReplay():
 
     def sample(self, batch_size, target_actor, target_critic, critic, discount):
 
-        prio_arr = np.array(self.priorities)
-        rank = [sorted(prio_arr)[::-1].index(x) + 1 for x in prio_arr]
+        #prio_arr = np.array(self.priorities)
+        #rank = [sorted(prio_arr)[::-1].index(x) + 1 for x in prio_arr]
 
-        scaled_priorities = np.power(rank,-self.a)
+        #scaled_priorities = np.power(rank, -self.a)
+        scaled_priorities = np.array(self.priorities) ** self.a
+
         sample_probabilities = scaled_priorities / sum(scaled_priorities)
 
         indices = random.choices(range(len(self.buffer)), weights=sample_probabilities, k=batch_size)
