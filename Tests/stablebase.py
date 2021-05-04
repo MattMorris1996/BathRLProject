@@ -46,7 +46,7 @@ class Mem_Buffer:
 
         self.mem_cntr = 0
 
-        self.state_mem = np.zeros((self.mem_size, num_states))
+        self.state_mem = np.zeros((self.mem_size, num_states), dtype= np.float32)
         self.action_mem = np.zeros((self.mem_size, num_actions))
         self.reward_mem = np.zeros((self.mem_size, 1))
         self.next_state_mem = np.zeros((self.mem_size, self.num_states))
