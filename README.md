@@ -20,4 +20,4 @@ This project was an assessment undertaken at the University of Bath and created 
 
 ## Learning Curve
 
-![](./Plots/average-average.png)
+![](./Plots/img.png)
