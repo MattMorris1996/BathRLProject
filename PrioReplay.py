@@ -4,6 +4,9 @@ import random
 import numpy as np
 
 class PrioReplay():
+    # self coded based on publication by:
+    # Y. Hou , Y. Zhang, “Improving DDPG via Prioritized Experience Replay,” May 2019
+    # unless specified otherwise
 
     def __init__(self, bufferlen):
         self.a = 0.7
@@ -13,10 +16,14 @@ class PrioReplay():
         self.priorities = deque(maxlen=int(bufferlen))
 
     def add(self, exp):
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         self.buffer.append(exp)
         self.priorities.append(max(self.priorities, default=1))
 
     def get_importance(self, sample_probabilities):
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
         importance_weights = importance / max(importance)
 
