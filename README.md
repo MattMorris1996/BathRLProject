@@ -12,11 +12,11 @@ This project was an assessment undertaken at the University of Bath and created 
 
 ## No Training Episode 0
 
-![](./videos/agent1_ep_0.gif)
+![](videos_initial_test/agent1_ep_0.gif)
 
 ## Trained Agent Episode 200
 
-![](./videos/agent1_ep_200.gif)
+![](videos_initial_test/agent1_ep_200.gif)
 
 ## Learning Curve
 

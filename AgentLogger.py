@@ -20,13 +20,13 @@ class AgentLogger:
             _render_list=None
     ):
         """Class which separates logging logic from an agent class, an object with this class type is passed as an
-        argument to the agent class to handle the logging of data to the console or to files.
+        argument to the agent class to handle the logging of data_initial_test to the console or to files.
 
         Args:
             _saving_interval : int determines the interval in which episodes are logged to a pickle file
-            _console_log: bool binary flag which activates the logging of data to the console
-            _pickle_log: bool binary flag which activates the logging of data to a pickle file
-            _live_plot: bool binary flag which activates the real time logging of data to live matplotlib plot
+            _console_log: bool binary flag which activates the logging of data_initial_test to the console
+            _pickle_log: bool binary flag which activates the logging of data_initial_test to a pickle file
+            _live_plot: bool binary flag which activates the real time logging of data_initial_test to live matplotlib plot
             _render_recording: bool binary flag which activates the saving of gym frames to a gif file
             _render_list: list contains integers with the index of episodes that should be rendered
         """
@@ -85,7 +85,7 @@ class AgentLogger:
 
     def pickle_dump(self, agent_id: int):
         df = self.data_frame[self.data_frame['AGENT_ID'] == agent_id]
-        pd.to_pickle(df, './data/data_ddpg_agent{}.pk1'.format(agent_id))
+        pd.to_pickle(df, './data_initial_test/data_ddpg_agent{}.pk1'.format(agent_id))
 
     def _episode_log_out(self, agent_id: int):
         df = self.data_frame[self.data_frame['AGENT_ID'] == agent_id]
@@ -98,7 +98,7 @@ class AgentLogger:
         else:
             print("Failed to complete in episode {:4} "
                   "with reward of {:8.3f} "
-                  "in {:5} steps, average reward of last {:4} "
+                  "in {:5} steps, average reward l'of last {:4} "
                   "episodes is {:8.3f}"
                   .format(row['NTH_EPISODE'], row['TOTAL_REWARD'], row['STEPS_TAKEN'], 100, row['MOVING_AVERAGE_REWARD'])),
 
@@ -137,7 +137,7 @@ class AgentLogger:
         if self.render_recording:
             if self.frame_buffer:
                 imageio.mimwrite(
-                    os.path.join('videos/', 'agent{}_ep_{}.gif'.format(agent_id, nth_episode)),
+                    os.path.join('videos_initial_test/', 'agent{}_ep_{}.gif'.format(agent_id, nth_episode)),
                     self.frame_buffer,
                     fps=30
                 )
