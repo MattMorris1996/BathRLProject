@@ -65,7 +65,8 @@ class PrioReplay():
         return samples, importance_tf32_t
 
     def set_prio(self, error, indice):
-
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         self.priorities[indice] = abs(error)
 
     def grow_b(self):
