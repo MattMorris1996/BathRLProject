@@ -4,6 +4,9 @@ import random
 import numpy as np
 
 class PrioReplay():
+    # self coded based on publication by:
+    # Y. Hou , Y. Zhang, “Improving DDPG via Prioritized Experience Replay,” May 2019
+    # unless specified otherwise
 
     def __init__(self, bufferlen):
         self.a = 0.7
@@ -13,10 +16,14 @@ class PrioReplay():
         self.priorities = deque(maxlen=int(bufferlen))
 
     def add(self, exp):
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         self.buffer.append(exp)
         self.priorities.append(max(self.priorities, default=1))
 
     def get_importance(self, sample_probabilities):
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         importance = 1 / ((len(self.buffer) ** self.b) * (sample_probabilities ** self.b))
         importance_weights = importance / max(importance)
 
@@ -24,10 +31,12 @@ class PrioReplay():
 
     def sample(self, batch_size, target_actor, target_critic, critic, discount):
 
-        prio_arr = np.array(self.priorities)
-        rank = [sorted(prio_arr)[::-1].index(x) + 1 for x in prio_arr]
+        #prio_arr = np.array(self.priorities)
+        #rank = [sorted(prio_arr)[::-1].index(x) + 1 for x in prio_arr]
 
-        scaled_priorities = np.power(rank,-self.a)
+        #scaled_priorities = np.power(rank, -self.a)
+        scaled_priorities = np.array(self.priorities) ** self.a
+
         sample_probabilities = scaled_priorities / sum(scaled_priorities)
 
         indices = random.choices(range(len(self.buffer)), weights=sample_probabilities, k=batch_size)
@@ -56,7 +65,8 @@ class PrioReplay():
         return samples, importance_tf32_t
 
     def set_prio(self, error, indice):
-
+        # inspire by:
+        # https://github.com/the-computer-scientist/OpenAIGym/blob/master/PrioritizedExperienceReplayInOpenAIGym.ipynb
         self.priorities[indice] = abs(error)
 
     def grow_b(self):
